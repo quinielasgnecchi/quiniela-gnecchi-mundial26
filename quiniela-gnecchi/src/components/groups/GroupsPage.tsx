@@ -62,6 +62,14 @@ export default function GroupsPage() {
   const [predictions, setPredictions] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [hasSubmitted, setHasSubmitted] = useState(false) // Nuevo estado para bloquear la edición
+
+  // Total de partidos en esta fase
+  const totalMatches = GROUP_MATCHES.length
+  // Cuántos partidos ya tienen selección (local, empate o visitante)
+  const completedMatches = Object.keys(predictions).length
+  // Porcentaje completado para la barra de progreso
+  const progressPercentage = totalMatches > 0 ? Math.round((completedMatches / totalMatches) * 100) : 0
 
   // Agrupación de partidos por su respectiva letra de grupo
   const matchesByGroup = useMemo(() => {
@@ -77,8 +85,22 @@ export default function GroupsPage() {
 
   useEffect(() => {
     if (!user) return
-    async function fetchUserPredictions() {
+    
+    async function checkSubmissionAndFetchPredictions() {
       try {
+        // 1. Verificar si este usuario ya envió la fase de grupos definitivamente
+        const { data: submission, error: subError } = await supabase
+          .from('submissions')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('phase', 'groups')
+          .single()
+
+        if (submission) {
+          setHasSubmitted(true)
+        }
+
+        // 2. Traer el historial de lo que ya seleccionó (si aplica)
         const { data, error } = await supabase
           .from('predictions')
           .select('match_id, prediction')
@@ -94,20 +116,33 @@ export default function GroupsPage() {
           setPredictions(initialPreds)
         }
       } catch (err) {
-        console.error("Error al obtener predicciones existentes:", err)
+        console.error("Error al cargar datos iniciales:", err)
       } finally {
         setLoading(false)
       }
     }
-    fetchUserPredictions()
+    
+    checkSubmissionAndFetchPredictions()
   }, [user])
 
   const handleSelectPrediction = (matchId: number, value: string) => {
+    // Si ya envió su quiniela, ignoramos cualquier clic para que no modifique nada
+    if (hasSubmitted) return
     setPredictions(prev => ({ ...prev, [matchId]: value }))
   }
 
   const handleSave = async () => {
-    if (!user) return
+    if (!user || hasSubmitted) return
+
+    // Obligar a que la quiniela esté completa al 100% antes de mandarla definitivamente
+    if (completedMatches < totalMatches) {
+      alert(`⚠️ Debes completar todos los partidos antes de enviar. Te faltan ${totalMatches - completedMatches} pronósticos.`)
+      return
+    }
+
+    const confirmSubmit = window.confirm("🚨 ¿Estás seguro de enviar tus respuestas? Una vez enviadas, NO podrás modificarlas bajo ninguna circunstancia.")
+    if (!confirmSubmit) return
+
     setSaving(true)
 
     try {
@@ -118,18 +153,14 @@ export default function GroupsPage() {
         phase: 'groups'
       }))
 
-      if (payload.length === 0) {
-        alert("Selecciona al menos un pronóstico antes de guardar.")
-        setSaving(false)
-        return
-      }
-
+      // Guardar predicciones
       const { error: upsertError } = await supabase
         .from('predictions')
         .upsert(payload, { onConflict: 'user_id,match_id' })
 
       if (upsertError) throw upsertError
 
+      // Registrar el envío final definitivo para bloquearlo para siempre
       await supabase.from('submissions').upsert({
         user_id: user.id,
         phase: 'groups',
@@ -137,11 +168,12 @@ export default function GroupsPage() {
         submitted_at: new Date().toISOString()
       }, { onConflict: 'user_id,phase' })
 
-      alert("¡Tus pronósticos de Fase de Grupos se guardaron con éxito!")
+      alert("🚀 ¡Tus pronósticos se han enviado con éxito! Ahora tu quiniela está guardada oficialmente.")
+      setHasSubmitted(true)
       navigate('/dashboard')
     } catch (error: any) {
       console.error(error)
-      alert(`Error al guardar: ${error.message || 'Intenta de nuevo'}`)
+      alert(`Error al enviar: ${error.message || 'Intenta de nuevo'}`)
     } finally {
       setSaving(false)
     }
@@ -160,18 +192,56 @@ export default function GroupsPage() {
   return (
     <div className="px-4 pt-6 pb-[100px] min-h-screen bg-[#0a0a0a] text-white">
       {/* Cabecera principal */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-5">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Fase de Grupos</h1>
           <p className="text-xs text-gray-500 mt-1">Organizado por Grupos Oficiales (A - L)</p>
         </div>
+        
+        {/* Cambiado el texto y deshabilitado si ya fue enviado */}
         <button 
           onClick={handleSave} 
-          disabled={saving}
-          className="bg-[#244ffe] hover:bg-[#1e44d6] disabled:opacity-50 px-5 py-2.5 rounded-xl font-bold text-xs transition-colors shadow-lg"
+          disabled={saving || hasSubmitted}
+          className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-colors shadow-lg ${
+            hasSubmitted 
+              ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700' 
+              : 'bg-[#244ffe] hover:bg-[#1e44d6] text-white'
+          }`}
         >
-          {saving ? 'Guardando...' : '💾 Guardar Todo'}
+          {saving ? 'Enviando...' : hasSubmitted ? '🔒 Respuestas Bloqueadas' : '🚀 Enviar Respuestas'}
         </button>
+      </div>
+
+      {/* Alerta visual si ya está bloqueado */}
+      {hasSubmitted && (
+        <div className="mb-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs text-center font-medium">
+          🔒 Ya has enviado tus respuestas para esta fase. Puedes ver tu historial de selecciones pero no modificarlo.
+        </div>
+      )}
+
+      {/* Barra de Progreso Dinámica */}
+      <div className="mb-8 p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs font-semibold text-gray-400">Progreso de tu quiniela</span>
+          <span className="text-xs font-bold text-gray-200 font-mono">
+            {completedMatches} de {totalMatches} partidos ({progressPercentage}%)
+          </span>
+        </div>
+        <div className="w-full bg-[#1a1a1a] h-2.5 rounded-full overflow-hidden border border-[#222]">
+          <div 
+            className="bg-[#01CB3B] h-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(1,203,59,0.3)]"
+            style={{ width: `${progressPercentage}%` }}
+          />
+        </div>
+        {totalMatches - completedMatches > 0 ? (
+          <p className="text-[10px] text-gray-500 mt-2 text-right">
+            Te faltan {totalMatches - completedMatches} partidos por rellenar.
+          </p>
+        ) : (
+          <p className="text-[10px] text-[#01CB3B] font-bold mt-2 text-right flex items-center justify-end gap-1">
+            🎉 ¡Listo! Has completado todos los partidos.
+          </p>
+        )}
       </div>
 
       {/* Renderizado de Grupos */}
@@ -191,17 +261,18 @@ export default function GroupsPage() {
                   Partido #{match.id} · {match.match_date} a las {match.match_time}
                 </p>
                 
-                {/* Contenedor Grid con altura simétrica */}
+                {/* Contenedor Grid */}
                 <div className="grid grid-cols-3 gap-2 items-stretch auto-rows-fr">
                   
-                  {/* Botón Equipo Local (Ganador -> Verde HEX #01CB3B) */}
+                  {/* Botón Equipo Local */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'home')}
+                    disabled={hasSubmitted}
                     className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 transition-all border h-full ${
                       predictions[match.id] === 'home' 
                         ? 'bg-[#01CB3B] border-[#02e643] text-white font-bold' 
-                        : 'bg-[#1a1a1a] border-transparent text-gray-400 hover:bg-[#222]'
-                    }`}
+                        : 'bg-[#1a1a1a] border-transparent text-gray-400'
+                    } ${!hasSubmitted && 'hover:bg-[#222]'}`}
                   >
                     <img 
                       src={`https://flagcdn.com/w80/${FLAG_MAP[match.home_team] || 'un'}.png`} 
@@ -212,27 +283,29 @@ export default function GroupsPage() {
                     <span className="text-[11px] font-semibold truncate w-full text-center">{match.home_team}</span>
                   </button>
 
-                  {/* Botón Empate (Empate -> Azul bg-[#244ffe]) */}
+                  {/* Botón Empate */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'draw')}
+                    disabled={hasSubmitted}
                     className={`flex flex-col items-center justify-center p-3 rounded-xl gap-1 transition-all border h-full ${
                       predictions[match.id] === 'draw' 
                         ? 'bg-[#244ffe] border-[#3b62ff] text-white font-bold' 
-                        : 'bg-[#1a1a1a] border-transparent text-gray-400 hover:bg-[#222]'
-                    }`}
+                        : 'bg-[#1a1a1a] border-transparent text-gray-400'
+                    } ${!hasSubmitted && 'hover:bg-[#222]'}`}
                   >
                     <span className="text-base leading-none">🫱🏻‍🫲🏼</span>
                     <span className="text-[11px] font-semibold">Empate</span>
                   </button>
 
-                  {/* Botón Equipo Visitante (Ganador -> Verde HEX #01CB3B) */}
+                  {/* Botón Equipo Visitante */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'away')}
+                    disabled={hasSubmitted}
                     className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 transition-all border h-full ${
                       predictions[match.id] === 'away' 
                         ? 'bg-[#01CB3B] border-[#02e643] text-white font-bold' 
-                        : 'bg-[#1a1a1a] border-transparent text-gray-400 hover:bg-[#222]'
-                    }`}
+                        : 'bg-[#1a1a1a] border-transparent text-gray-400'
+                    } ${!hasSubmitted && 'hover:bg-[#222]'}`}
                   >
                     <img 
                       src={`https://flagcdn.com/w80/${FLAG_MAP[match.away_team] || 'un'}.png`} 
