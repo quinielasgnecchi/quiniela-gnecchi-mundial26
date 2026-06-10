@@ -52,7 +52,7 @@ export default function GroupsPage() {
         if (matchesError) throw matchesError
         setDbMatches(matchesData || [])
 
-        // 3. Traer predicciones previas guardadas (si existen)
+        // 3. Traer predicciones previas guardadas
         const { data: predsData } = await supabase
           .from('predictions')
           .select('match_id, prediction')
@@ -134,6 +134,14 @@ export default function GroupsPage() {
     }
   }
 
+  // Helper para mostrar visualmente el resultado seleccionado de forma elegante
+  const renderSelectedLabel = (match: Match, val: string) => {
+    if (val === 'L') return `Ganador: ${match.home_team}`
+    if (val === 'V') return `Ganador: ${match.away_team}`
+    if (val === 'E') return 'Empate'
+    return 'Sin pronóstico'
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] text-white">
@@ -156,39 +164,49 @@ export default function GroupsPage() {
       </div>
 
       <div className="flex flex-col gap-4">
-        {dbMatches.map((match) => (
-          <div key={match.id} className="p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-800 text-gray-400 uppercase tracking-wider">
-              Grupo {match.group_name}
-            </span>
-            
-            <div className="grid grid-cols-3 items-center mt-3 text-center">
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-2xl">{match.home_flag}</span>
-                <span className="text-xs font-semibold truncate w-24 text-gray-200">{match.home_team}</span>
-              </div>
+        {dbMatches.map((match) => {
+          const userPred = predictions[match.id] || '';
+          return (
+            <div key={match.id} className="p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-800 text-gray-400 uppercase tracking-wider">
+                Grupo {match.group_name}
+              </span>
+              
+              <div className="grid grid-cols-3 items-center mt-3 text-center">
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-2xl">{match.home_flag}</span>
+                  <span className="text-xs font-semibold truncate w-24 text-gray-200">{match.home_team}</span>
+                </div>
 
-              <div className="flex flex-col gap-2">
-                <select
-                  disabled={hasSubmitted}
-                  value={predictions[match.id] || ''}
-                  onChange={(e) => handlePredictionChange(match.id, e.target.value)}
-                  className="w-full bg-[#1a1a1a] border border-[#262626] rounded-xl py-2 text-center text-xs font-bold text-white focus:outline-none focus:border-[#009AFE] disabled:opacity-60"
-                >
-                  <option value="">Elegir resultado</option>
-                  <option value="L">Gana {match.home_team}</option>
-                  <option value="E">Empate</option>
-                  <option value="V">Gana {match.away_team}</option>
-                </select>
-              </div>
+                <div className="flex flex-col gap-2">
+                  {hasSubmitted ? (
+                    // Vista fija y limpia si ya se envió la quiniela
+                    <div className="bg-[#1a1a1a] border border-[#01CB3B]/30 rounded-xl py-2 px-1 text-center text-[11px] font-bold text-[#01CB3B]">
+                      {renderSelectedLabel(match, userPred)}
+                    </div>
+                  ) : (
+                    // Selector interactivo si aún no se ha enviado
+                    <select
+                      value={userPred}
+                      onChange={(e) => handlePredictionChange(match.id, e.target.value)}
+                      className="w-full bg-[#1a1a1a] border border-[#262626] rounded-xl py-2 text-center text-xs font-bold text-white focus:outline-none focus:border-[#009AFE]"
+                    >
+                      <option value="">Elegir resultado</option>
+                      <option value="L">Gana {match.home_team}</option>
+                      <option value="E">Empate</option>
+                      <option value="V">Gana {match.away_team}</option>
+                    </select>
+                  )}
+                </div>
 
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-2xl">{match.away_flag}</span>
-                <span className="text-xs font-semibold truncate w-24 text-gray-200">{match.away_team}</span>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-2xl">{match.away_flag}</span>
+                  <span className="text-xs font-semibold truncate w-24 text-gray-200">{match.away_team}</span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {!hasSubmitted && (
