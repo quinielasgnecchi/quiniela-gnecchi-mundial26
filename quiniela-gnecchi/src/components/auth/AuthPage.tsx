@@ -6,10 +6,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  
-  // Manejamos un solo flujo visual, pero internamente dejamos que el usuario alterne 
-  // si es su primera vez de forma muy sutil, manteniendo el botón único de "Ingresar".
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
   const [isFirstTime, setIsFirstTime] = useState(false)
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -19,12 +16,11 @@ export default function AuthPage() {
 
     try {
       if (isFirstTime) {
-        // FLUJO REGISTRO: Si es su primera vez, creamos la cuenta
         if (!fullName.trim()) {
           throw new Error('Por favor, ingresa tu nombre completo para el ranking.')
         }
 
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -34,9 +30,20 @@ export default function AuthPage() {
           }
         })
         if (signUpError) throw signUpError
-        setMessage({ type: 'success', text: '¡Registro exitoso! Revisa tu correo para verificar tu cuenta o ingresa directamente.' })
+
+        // Capturamos el caso donde Supabase envía el correo de confirmación
+        if (data?.user && data.user.identities && data.user.identities.length === 0) {
+          setMessage({
+            type: 'info',
+            text: '📧 Este correo ya está registrado. Si no confirmaste tu cuenta antes, busca el enlace de validación en tu bandeja de entrada.'
+          })
+        } else {
+          setMessage({ 
+            type: 'success', 
+            text: '📩 ¡Registro recibido! Hemos enviado un enlace de validación a tu correo electrónico. Por favor, confírmalo para poder ingresar.' 
+          })
+        }
       } else {
-        // FLUJO INGRESO DIRECTO: Intento de inicio de sesión tradicional
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -44,11 +51,15 @@ export default function AuthPage() {
         if (signInError) throw signInError
       }
     } catch (error: any) {
-      // Si el usuario intenta ingresar pero no existe, le avisamos sutilmente que debe registrarse
-      if (error.message?.includes('Invalid login credentials')) {
+      if (error.message?.includes('Email signup is disabled') || error.message?.includes('invalid')) {
+        setMessage({
+          type: 'error',
+          text: '⚠️ No puedes ingresar todavía. Por favor, revisa tu correo electrónico y haz clic en el enlace de validación que te enviamos.'
+        })
+      } else if (error.message?.includes('Invalid login credentials')) {
         setMessage({ 
           type: 'error', 
-          text: 'No encontramos tu cuenta con esa contraseña. Si es tu primera vez, marca la casilla de abajo para registrarte.' 
+          text: 'Contraseña incorrecta. Si es tu primera vez participando, marca la opción de registrarte abajo.' 
         })
       } else {
         setMessage({ type: 'error', text: error.message || 'Ocurrió un error inesperado.' })
@@ -62,7 +73,6 @@ export default function AuthPage() {
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col justify-center items-center px-4">
       <div className="w-full max-w-md p-6 rounded-3xl bg-[#141414] border border-[#1f1f1f] shadow-xl">
         
-        {/* Logo / Título */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-black tracking-tight text-white">
             QUINIELA<span className="text-[#009AFE]">2026</span>
@@ -72,27 +82,26 @@ export default function AuthPage() {
           </p>
         </div>
 
-        {/* Alertas */}
         {message && (
-          <div className={`mb-4 p-3 rounded-xl text-xs font-medium text-center border ${
+          <div className={`mb-5 p-4 rounded-xl text-xs font-medium text-center border ${
             message.type === 'success' 
               ? 'bg-green-500/10 border-green-500/20 text-[#01CB3B]' 
+              : message.type === 'info'
+              ? 'bg-blue-500/10 border-blue-500/20 text-[#009AFE]'
               : 'bg-red-500/10 border-red-500/20 text-red-400'
           }`}>
             {message.text}
           </div>
         )}
 
-        {/* Formulario Unificado */}
         <form onSubmit={handleAuth} className="flex flex-col gap-4">
           
-          {/* Si es primera vez, se despliega el campo de Nombre automáticamente */}
           {isFirstTime && (
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Nombre Completo</label>
               <input 
                 type="text" 
-                placeholder="Ej. Juan Pérez"
+                placeholder="Ej. Bruno Díaz"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-[#1a1a1a] border border-[#262626] text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#009AFE] transition-colors"
@@ -125,17 +134,15 @@ export default function AuthPage() {
             />
           </div>
 
-          {/* BOTÓN ÚNICO DE ACCIÓN */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-2 py-3.5 rounded-xl bg-[#009AFE] hover:bg-[#0086dd] text-white font-bold text-sm transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full mt-2 py-3.5 rounded-xl bg-[#009AFE] hover:bg-[#0086dd] text-white font-bold text-sm transition-colors shadow-lg disabled:opacity-50"
           >
-            {loading ? 'Procesando...' : isFirstTime ? '🚀 Registrarme e Ingresar' : '🚪 Ingresar'}
+            {loading ? 'Procesando...' : isFirstTime ? '🚀 Registrarme' : '🚪 Ingresar'}
           </button>
         </form>
 
-        {/* Switch sutil e Inteligente en la parte inferior */}
         <div className="mt-6 pt-4 border-t border-[#1f1f1f] text-center">
           <button
             type="button"
