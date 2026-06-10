@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 
-// Interfaz para mapear los usuarios registrados en tu base de datos
 interface RankingUser {
   id: string
   full_name: string | null
   avatar_url: string | null
-  points: number // Por defecto será 0 si no se ha calculado nada
+  points: number
 }
 
 export default function RankingPage() {
@@ -18,10 +17,9 @@ export default function RankingPage() {
       try {
         setLoading(true)
         
-        // Consultamos la tabla pública de perfiles/usuarios.
-        // Ordenamos por puntos de mayor a menor, y si empatan (como al inicio), por nombre.
+        // Consultamos los usuarios registrados en tu tabla pública de perfiles
         const { data, error } = await supabase
-          .from('profiles') // Si tu tabla se llama 'users', cambia 'profiles' por 'users'
+          .from('profiles')
           .select('id, full_name, avatar_url, points')
           .order('points', { ascending: false })
           .order('full_name', { ascending: true })
@@ -29,7 +27,6 @@ export default function RankingPage() {
         if (error) throw error
 
         if (data) {
-          // Si por algún motivo la columna 'points' viene vacía/null de la BD, aseguramos un 0
           const formattedData = (data as any[]).map(user => ({
             id: user.id,
             full_name: user.full_name || 'Usuario Anónimo',
@@ -58,7 +55,7 @@ export default function RankingPage() {
 
   return (
     <div className="px-4 pt-6 pb-[100px] min-h-screen bg-[#0a0a0a] text-white">
-      {/* Cabecera de la sección */}
+      {/* Cabecera */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Tabla de Posiciones</h1>
         <p className="text-xs text-gray-500 mt-1">
@@ -75,8 +72,71 @@ export default function RankingPage() {
           {ranking.map((player, index) => {
             const position = index + 1
             
-            // Estilos especiales para el podio (Top 3)
+            // Estilos especiales para el podio (Fijados y cerrados correctamente)
             let badgeStyle = "bg-[#1a1a1a] text-gray-400"
             if (position === 1) badgeStyle = "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
             if (position === 2) badgeStyle = "bg-gray-400/10 text-gray-300 border border-gray-400/20"
-            if (position === 3) badgeStyle = "bg-amber-700/10 text
+            if (position === 3) badgeStyle = "bg-amber-700/10 text-amber-500 border border-amber-700/20"
+
+            return (
+              <div 
+                key={player.id} 
+                className="flex items-center justify-between p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f] shadow-sm transition-all"
+              >
+                {/* Lado izquierdo: Posición, Avatar y Nombre */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold font-mono ${badgeStyle}`}>
+                    {position}
+                  </div>
+
+                  {/* Avatar / Foto */}
+                  <div className="relative w-10 h-10 rounded-full overflow-hidden bg-[#1a1a1a] flex-shrink-0 border border-[#222]">
+                    {player.avatar_url ? (
+                      <img 
+                        src={player.avatar_url} 
+                        alt={player.full_name || 'Avatar'} 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${player.id}`
+                        }}
+                      />
+                    ) : (
+                      <img 
+                        src={`https://api.dicebear.com/7.x/initials/svg?seed=${player.full_name || 'U'}&backgroundType=gradientLinear`} 
+                        alt="Default Avatar"
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
+
+                  {/* Nombre */}
+                  <div className="truncate">
+                    <span className="text-sm font-semibold text-gray-200 block truncate">
+                      {player.full_name}
+                    </span>
+                    {position <= 3 && (
+                      <span className="text-[10px] text-[#009AFE] font-medium tracking-wide uppercase">
+                        {position === 1 ? '👑 Líder' : '🔥 Podio'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Lado derecho: Puntos */}
+                <div className="flex flex-col items-end justify-center pl-2 flex-shrink-0">
+                  <span className="text-base font-bold font-mono text-white leading-none">
+                    {player.points}
+                  </span>
+                  <span className="text-[9px] text-gray-500 uppercase tracking-wider mt-1">
+                    Pts
+                  </span>
+                </div>
+
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
