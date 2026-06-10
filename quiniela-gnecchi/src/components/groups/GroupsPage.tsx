@@ -36,12 +36,11 @@ export default function GroupsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   
-  // BLOQUEO LOCAL INMEDIATO: Revisa si el navegador ya tiene la orden de bloquear
   const [hasSubmitted, setHasSubmitted] = useState<boolean>(() => {
     return localStorage.getItem('quiniela_groups_submitted') === 'true'
   })
   
-  const [activeGroup, setActiveGroup] = useState<string>('A')
+  const [activeGroup, setActiveGroup] = useState<string>('Grupo A')
 
   const totalMatches = dbMatches.length
   const completedMatches = Object.keys(predictions).length
@@ -108,7 +107,7 @@ export default function GroupsPage() {
   }, [user])
 
   const handleSelectPrediction = (matchId: number, value: string) => {
-    if (hasSubmitted) return // Bloqueo total de clics
+    if (hasSubmitted) return 
     setPredictions(prev => ({ ...prev, [matchId]: value }))
   }
 
@@ -146,7 +145,6 @@ export default function GroupsPage() {
         submitted_at: new Date().toISOString()
       }, { onConflict: 'user_id,phase' })
 
-      // ACCIÓN CLAVE: Forzamos el guardado en la memoria interna del navegador
       localStorage.setItem('quiniela_groups_submitted', 'true')
       setHasSubmitted(true)
       
@@ -179,7 +177,6 @@ export default function GroupsPage() {
           </p>
         </div>
         
-        {/* EL BOTÓN DESAPARECE DE LA EXISTENCIA SI HAS_SUBMITTED ES TRUE */}
         {!hasSubmitted && (
           <button 
             onClick={handleSave} 
@@ -243,7 +240,7 @@ export default function GroupsPage() {
                   : 'bg-[#141414] border-[#1f1f1f] text-gray-400 hover:bg-[#1a1a1a]'
               }`}
             >
-              {groupName}
+              {groupName.replace('Grupo ', '')}
             </button>
           ))}
         </div>
@@ -254,9 +251,9 @@ export default function GroupsPage() {
         <div className="mb-10">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-6 h-6 bg-[#009AFE] rounded-md flex items-center justify-center font-bold text-xs text-white">
-              {activeGroup}
+              {activeGroup.replace('Grupo ', '')}
             </div>
-            <h2 className="text-base font-bold text-gray-200">Partidos Grupo {activeGroup}</h2>
+            <h2 className="text-base font-bold text-gray-200">Partidos {activeGroup}</h2>
           </div>
           
           <div className="flex flex-col gap-4">
@@ -299,7 +296,7 @@ export default function GroupsPage() {
                         : 'bg-[#1a1a1a] border-transparent text-gray-400'
                     } ${hasSubmitted ? 'cursor-default opacity-60' : 'hover:bg-[#222]'}`}
                   >
-                    <span className="text-lg leading-none">🫱🏻‍🫲🏼</span>
+                    <span className="text-lg leading-none">🫱_🫲🏼</span>
                     <span className="text-[11px] font-semibold">Empate</span>
                   </button>
 
