@@ -53,18 +53,42 @@ export default function ProfilePage() {
     setSaving(true)
 
     let avatarUrl = avatarPreview
+
     if (avatarFile) {
-      const ext = avatarFile.name.split('.').pop()
-      const { data: uploadData } = await supabase.storage
-        .from('avatars')
-        .upload(`${user.id}.${ext}`, avatarFile, { upsert: true })
-      if (uploadData) {
-        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(uploadData.path)
-        avatarUrl = urlData.publicUrl
+      try {
+        const ext = avatarFile.name.split('.').pop()?.toLowerCase() || 'png'
+        // Agregamos un timestamp dinámico para evitar problemas de caché en el almacenamiento
+        const filePath = `${user.id}/${Date.now()}.${ext}`
+
+        // Subida al almacenamiento
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, avatarFile, { 
+            cacheControl: '3600',
+            upsert: true 
+          })
+
+        if (uploadError) throw uploadError
+
+        if (uploadData) {
+          // Obtención de la URL pública oficial
+          const { data: urlData } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(uploadData.path)
+          
+          if (urlData?.publicUrl) {
+            avatarUrl = urlData.publicUrl
+          }
+        }
+      } catch (uploadErr: any) {
+        console.error('Error al subir la imagen:', uploadErr)
+        alert('Error al subir la imagen al servidor: ' + (uploadErr.message || 'Intenta de nuevo'))
+        setSaving(false)
+        return
       }
     }
 
-    // Guardado directo y limpio
+    // Guardado directo y limpio en la base de datos
     const { error } = await supabase.from('profiles').upsert({
       id: user.id,
       email: user.email,
@@ -131,6 +155,3 @@ export default function ProfilePage() {
           </button>
         </div>
       )}
-    </div>
-  )
-}
