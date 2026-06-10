@@ -216,7 +216,7 @@ export default function GroupsPage() {
         </div>
       )}
 
-      {/* Barra de Progreso Dinámica */}
+      {/* Barra de Progreso Dinámica (Se mantiene en verde #01CB3B) */}
       <div className="mb-6 p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
         <div className="flex justify-between items-center mb-2">
           <span className="text-xs font-semibold text-gray-400">Progreso de tu quiniela</span>
@@ -226,7 +226,7 @@ export default function GroupsPage() {
         </div>
         <div className="w-full bg-[#1a1a1a] h-2.5 rounded-full overflow-hidden border border-[#222]">
           <div 
-            className="bg-[#009AFE] h-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(0,154,254,0.3)]"
+            className="bg-[#01CB3B] h-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(1,203,59,0.3)]"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
@@ -235,13 +235,13 @@ export default function GroupsPage() {
             Te faltan {totalMatches - completedMatches} partidos por rellenar.
           </p>
         ) : (
-          <p className="text-[10px] text-[#009AFE] font-bold mt-2 text-right flex items-center justify-end gap-1">
+          <p className="text-[10px] text-[#01CB3B] font-bold mt-2 text-right flex items-center justify-end gap-1">
             🎉 ¡Listo! Has completado todos los partidos.
           </p>
         )}
       </div>
 
-      {/* SECCIÓN NUEVA: Selector de Grupos Horizontal (Tabs) */}
+      {/* Selector de Grupos Horizontal (Tabs) */}
       <div className="mb-6 overflow-x-auto scrollbar-none flex gap-2 pb-2 border-b border-[#1f1f1f]">
         {sortedGroupNames.map((groupName) => (
           <button
