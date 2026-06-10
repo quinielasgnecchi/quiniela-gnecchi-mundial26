@@ -8,70 +8,108 @@ interface AuthContextType {
   signOut: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, loading: true, signOut: async () => {} })
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  loading: true,
+  signOut: async () => {}
+})
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) fetchProfile(session.user.id)
-      else setLoading(false)
-    })
+    let mounted = true
+
+    const init = async () => {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const session = sessionData?.session
+
+      if (!session?.user) {
+        if (mounted) {
+          setUser(null)
+          setLoading(false)
+        }
+        return
+      }
+
+      await fetchProfile(session.user.id)
+    }
+
+    init()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) fetchProfile(session.user.id)
-      else { setUser(null); setLoading(false) }
+      if (!mounted) return
+
+      if (session?.user) {
+        fetchProfile(session.user.id)
+      } else {
+        setUser(null)
+        setLoading(false)
+      }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
- async function fetchProfile(userId: string) {
-  const { data: authUser } = await supabase.auth.getUser()
+  async function fetchProfile(userId: string) {
+    try {
+      const { data: authUser } = await supabase.auth.getUser()
 
-  const email = authUser.user?.email ?? ''
-  const defaultName = email.split('@')[0]
+      const email = authUser.user?.email ?? ''
+      const defaultName = email.split('@')[0]
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single()
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()
 
-  if (error || !data) {
-    const { data: inserted } = await supabase
-      .from('profiles')
-      .insert({
-        id: userId,
-        email,
-        full_name: defaultName,
-        role: 'user',
-      })
-      .select()
-      .single()
+      if (!profile) {
+        const { data: inserted } = await supabase
+          .from('profiles')
+          .insert({
+            id: userId,
+            email,
+            full_name: defaultName,
+            role: 'user',
+          })
+          .select()
+          .single()
 
-    setUser(inserted)
-    setLoading(false)
-    return
+        setUser(inserted)
+        setLoading(false)
+        return
+      }
+
+      const fixedProfile = {
+        ...profile,
+        full_name: profile.full_name || defaultName,
+      }
+
+      setUser(fixedProfile)
+    } catch (err) {
+      console.error('Auth error:', err)
+      setUser(null)
+    } finally {
+      setLoading(false)
+    }
   }
-
-  // si no tiene nombre, usar email
-  if (!data.full_name) {
-    data.full_name = defaultName
-  }
-
-  setUser(data)
-  setLoading(false)
-}
 
   async function signOut() {
     await supabase.auth.signOut()
     setUser(null)
+    setLoading(false)
   }
 
-  return <AuthContext.Provider value={{ user, loading, signOut }}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ user, loading, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export const useAuth = () => useContext(AuthContext)
