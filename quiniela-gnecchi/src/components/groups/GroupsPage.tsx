@@ -1,8 +1,24 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { GROUP_MATCHES } from '../../data/matches'
+
+// Mapeo de nombres de equipos a códigos de banderas (FlagCDN)
+const FLAG_MAP: Record<string, string> = {
+  'México': 'mx', 'Sudáfrica': 'za', 'Corea del Sur': 'kr', 'Chequia': 'cz',
+  'Canadá': 'ca', 'Bosnia y Herzegovina': 'ba', 'Catar': 'qa', 'Suiza': 'ch',
+  'Brasil': 'br', 'Marruecos': 'ma', 'Haití': 'ht', 'Escocia': 'gb-sct',
+  'Estados Unidos': 'us', 'Paraguay': 'py', 'Australia': 'au', 'Turquía': 'tr',
+  'Alemania': 'de', 'Curazao': 'cw', 'Costa de Marfil': 'ci', 'Ecuador': 'ec',
+  'Países Bajos': 'nl', 'Japón': 'jp', 'Suecia': 'se', 'Túnez': 'tn',
+  'España': 'es', 'Cabo Verde': 'cv', 'Uruguay': 'uy', 'Arabia Saudita': 'sa',
+  'Bélgica': 'be', 'Egipto': 'eg', 'Irán': 'ir', 'Nueva Zelanda': 'nz',
+  'Francia': 'fr', 'Senegal': 'sn', 'Irak': 'iq', 'Noruega': 'no',
+  'Argentina': 'ar', 'Argelia': 'dz', 'Austria': 'at', 'Jordania': 'jo',
+  'Portugal': 'pt', 'RD Congo': 'cd', 'Inglaterra': 'gb-eng', 'Croacia': 'hr',
+  'Ghana': 'gh', 'Panamá': 'pa', 'Uzbekistán': 'uz', 'Colombia': 'co'
+}
 
 export default function GroupsPage() {
   const { user } = useAuth()
@@ -11,135 +27,83 @@ export default function GroupsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
+  // Agrupamos los partidos por nombre de grupo (A, B, C...)
+  const matchesByGroup = useMemo(() => {
+    const groups: Record<string, typeof GROUP_MATCHES> = {}
+    GROUP_MATCHES.forEach(match => {
+      if (!groups[match.group_name]) groups[match.group_name] = []
+      groups[match.group_name].push(match)
+    })
+    return groups
+  }, [])
+
   useEffect(() => {
     if (!user) return
-    async function fetchUserPredictions() {
-      try {
-        // Cargamos las predicciones que el usuario ya tenga guardadas en la base de datos
-        const { data: predsData } = await supabase
-          .from('predictions')
-          .select('match_id, prediction')
-          .eq('user_id', user.id)
-
-        if (predsData) {
-          const initialPreds: Record<number, string> = {}
-          predsData.forEach(p => {
-            initialPreds[p.match_id] = p.prediction
-          })
-          setPredictions(initialPreds)
-        }
-      } catch (err) {
-        console.error("Error al cargar predicciones:", err)
-      } finally {
-        setLoading(false)
+    async function fetchPreds() {
+      const { data } = await supabase.from('predictions').select('match_id, prediction').eq('user_id', user.id)
+      if (data) {
+        const p: Record<number, string> = {}
+        data.forEach(item => p[item.match_id] = item.prediction)
+        setPredictions(p)
       }
+      setLoading(false)
     }
-    fetchUserPredictions()
+    fetchPreds()
   }, [user])
 
-  const handleSelectPrediction = (matchId: number, value: string) => {
-    setPredictions(prev => ({ ...prev, [matchId]: value }))
-  }
-
-  async function handleSave() {
+  const handleSave = async () => {
     if (!user) return
     setSaving(true)
-
-    try {
-      const payload = Object.entries(predictions).map(([mId, val]) => ({
-        user_id: user.id,
-        match_id: parseInt(mId),
-        prediction: val,
-        phase: 'groups'
-      }))
-
-      if (payload.length === 0) {
-        alert("Selecciona al menos un resultado antes de guardar.")
-        setSaving(false)
-        return
-      }
-
-      // Guardado en la tabla 'predictions'
-      const { error: upsertError } = await supabase
-        .from('predictions')
-        .upsert(payload, { onConflict: 'user_id,match_id' })
-
-      if (upsertError) throw upsertError
-
-      // Actualizado en la tabla 'submissions' para reflejar el progreso en el inicio
-      await supabase.from('submissions').upsert({
-        user_id: user.id,
-        phase: 'groups',
-        predictions_count: payload.length,
-        submitted_at: new Date().toISOString()
-      }, { onConflict: 'user_id,phase' })
-
-      alert("¡Pronósticos guardados con éxito!")
+    const payload = Object.entries(predictions).map(([id, val]) => ({
+      user_id: user.id, match_id: parseInt(id), prediction: val, phase: 'groups'
+    }))
+    const { error } = await supabase.from('predictions').upsert(payload, { onConflict: 'user_id,match_id' })
+    if (!error) {
+      await supabase.from('submissions').upsert({ user_id: user.id, phase: 'groups', predictions_count: payload.length, submitted_at: new Date().toISOString() }, { onConflict: 'user_id,phase' })
+      alert("¡Guardado!")
       navigate('/dashboard')
-    } catch (error: any) {
-      console.error(error)
-      alert(`Error al guardar: ${error.message || 'Intenta de nuevo'}`)
-    } finally {
-      setSaving(false)
     }
+    setSaving(false)
   }
 
-  if (loading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-gray-500">Cargando tus partidos...</div>
+  if (loading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-gray-500">Cargando...</div>
 
   return (
     <div className="px-4 pt-6 pb-[100px] min-h-screen bg-[#0a0a0a] text-white">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-xl font-bold">Fase de Grupos</h1>
-          <p className="text-xs text-gray-500">Selecciona tus pronósticos</p>
-        </div>
-        <button 
-          onClick={handleSave} 
-          disabled={saving}
-          className="px-4 py-2 bg-[#244ffe] rounded-lg font-bold text-xs disabled:opacity-50"
-        >
-          {saving ? 'Guardando...' : '💾 Guardar Todo'}
-        </button>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-2xl font-bold">Fase de Grupos</h1>
+        <button onClick={handleSave} disabled={saving} className="bg-[#244ffe] px-6 py-2 rounded-xl font-bold">{saving ? '...' : 'Guardar Todo'}</button>
       </div>
 
-      <div className="flex flex-col gap-4">
-        {GROUP_MATCHES.map((match) => (
-          <div key={match.id} className="p-4 rounded-xl bg-[#141414] border border-[#1f1f1f]">
-            <div className="flex justify-between items-center text-[10px] text-gray-500 mb-2">
-              <span>Grupo {match.group_name}</span>
-              <span>Partido #{match.id}</span>
-              <span>{match.match_date} a las {match.match_time}</span>
-            </div>
-            <div className="grid grid-cols-3 items-center gap-2 text-center text-xs">
-              
-              {/* Local */}
-              <button 
-                onClick={() => handleSelectPrediction(match.id, 'home')}
-                className={`p-3 rounded-lg font-semibold transition-all ${predictions[match.id] === 'home' ? 'bg-[#244ffe] text-white' : 'bg-[#1a1a1a] text-gray-400'}`}
-              >
-                {match.home_team}
-              </button>
-
-              {/* Empate */}
-              <button 
-                onClick={() => handleSelectPrediction(match.id, 'draw')}
-                className={`p-3 rounded-lg font-semibold transition-all ${predictions[match.id] === 'draw' ? 'bg-[#2a2a2a] text-white' : 'bg-[#1a1a1a] text-gray-400'}`}
-              >
-                Empate
-              </button>
-
-              {/* Visitante */}
-              <button 
-                onClick={() => handleSelectPrediction(match.id, 'away')}
-                className={`p-3 rounded-lg font-semibold transition-all ${predictions[match.id] === 'away' ? 'bg-[#244ffe] text-white' : 'bg-[#1a1a1a] text-gray-400'}`}
-              >
-                {match.away_team}
-              </button>
-
-            </div>
+      {Object.entries(matchesByGroup).sort().map(([groupName, matches]) => (
+        <div key={groupName} className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-8 h-8 bg-[#244ffe] rounded-lg flex items-center justify-center font-bold text-sm">G</div>
+            <h2 className="text-lg font-bold">Grupo {groupName}</h2>
           </div>
-        ))}
-      </div>
+          
+          <div className="flex flex-col gap-4">
+            {matches.map(match => (
+              <div key={match.id} className="p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
+                <p className="text-[10px] text-gray-500 text-center mb-3">Partido #{match.id} · {match.match_date}</p>
+                <div className="grid grid-cols-3 gap-2 items-center">
+                  <button onClick={() => setPredictions({...predictions, [match.id]: 'home'})} className={`flex flex-col items-center p-3 rounded-xl gap-2 ${predictions[match.id] === 'home' ? 'bg-[#244ffe]' : 'bg-[#1a1a1a]'}`}>
+                    <img src={`https://flagcdn.com/w80/${FLAG_MAP[match.home_team] || 'un'}.png`} className="w-8 h-6 object-cover rounded shadow" />
+                    <span className="text-[10px] font-bold truncate w-full">{match.home_team}</span>
+                  </button>
+                  <button onClick={() => setPredictions({...predictions, [match.id]: 'draw'})} className={`p-4 rounded-xl font-bold text-xs ${predictions[match.id] === 'draw' ? 'bg-[#2a2a2a]' : 'bg-[#1a1a1a]'}`}>Empate</button>
+                  <button onClick={() => setPredictions({...predictions, [match.id]: 'away'})} className={`flex flex-col items-center p-3 rounded-xl gap-2 ${predictions[match.id] === 'away' ? 'bg-[#244ffe]' : 'bg-[#1a1a1a]'}`}>
+                    <img src={`https://flagcdn.com/w80/${FLAG_MAP[match.away_team] || 'un'}.png`} className="w-8 h-6 object-cover rounded shadow" />
+                    <span className="text-[10px] font-bold truncate w-full">{match.away_team}</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
+
+¡Espero que esto sea exactamente lo que buscabas! Avísame si necesitas cualquier otro ajuste.
