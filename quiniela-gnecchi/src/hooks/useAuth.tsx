@@ -16,25 +16,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser({ id: session.user.id, email: session.user.email ?? '', full_name: session.user.email ?? '', role: 'user', created_at: '' })
-        setLoading(false)
-      } else {
-        setLoading(false)
-      }
+      if (session?.user) fetchProfile(session.user.id, session.user.email ?? '')
+      else setLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser({ id: session.user.id, email: session.user.email ?? '', full_name: session.user.email ?? '', role: 'user', created_at: '' })
-      } else {
-        setUser(null)
-      }
-      setLoading(false)
+      if (session?.user) fetchProfile(session.user.id, session.user.email ?? '')
+      else { setUser(null); setLoading(false) }
     })
 
     return () => subscription.unsubscribe()
   }, [])
+
+  async function fetchProfile(userId: string, email: string) {
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+    if (data) {
+      setUser(data)
+    } else {
+      // Fallback: use auth session data directly
+      setUser({ id: userId, email, full_name: email.split('@')[0], role: 'user', created_at: '' })
+    }
+    setLoading(false)
+  }
 
   async function signOut() {
     await supabase.auth.signOut()
