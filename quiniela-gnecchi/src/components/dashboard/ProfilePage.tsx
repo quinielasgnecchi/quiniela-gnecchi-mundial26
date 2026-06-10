@@ -6,18 +6,40 @@ export default function ProfilePage() {
   const { user, signOut } = useAuth()
   const [editing, setEditing] = useState(false)
   const [fullName, setFullName] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState('')
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
 
+  // Forzamos la carga directa desde la tabla 'profiles'
   useEffect(() => {
-    if (user) {
-      setFullName(user.full_name || user.email.split('@')[0])
-      setAvatarPreview(user.avatar_url ?? '')
+    async function loadProfile() {
+      if (!user) return
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('id', user.id)
+          .single()
+
+        if (error) throw error
+        
+        if (data) {
+          setFullName(data.full_name || user.email?.split('@')[0] || '')
+          setAvatarPreview(data.avatar_url ?? '')
+        }
+      } catch (err) {
+        console.error('Error al cargar perfil real:', err)
+        // Fallback inmediato si no encuentra fila
+        setFullName(user.email?.split('@')[0] || '')
+      } finally {
+        setLoading(false)
+      }
     }
+    loadProfile()
   }, [user])
 
-  if (!user) return null
+  if (!user || loading) return <div className="p-4 text-white">Cargando perfil...</div>
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -30,33 +52,36 @@ export default function ProfilePage() {
     if (!fullName.trim()) return
     setSaving(true)
 
-    let avatarUrl = user!.avatar_url ?? ''
+    let avatarUrl = avatarPreview
     if (avatarFile) {
       const ext = avatarFile.name.split('.').pop()
       const { data: uploadData } = await supabase.storage
         .from('avatars')
-        .upload(`${user!.id}.${ext}`, avatarFile, { upsert: true })
+        .upload(`${user.id}.${ext}`, avatarFile, { upsert: true })
       if (uploadData) {
         const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(uploadData.path)
         avatarUrl = urlData.publicUrl
       }
     }
 
-    await supabase.from('profiles').upsert({
-      id: user!.id,
-      email: user!.email,
-      full_name: fullName,
+    // Guardado directo y limpio
+    const { error } = await supabase.from('profiles').upsert({
+      id: user.id,
+      email: user.email,
+      full_name: fullName.trim(),
       avatar_url: avatarUrl,
-      role: user!.role,
     })
 
+    if (error) {
+      alert('Error en Supabase al guardar el nombre: ' + error.message)
+    } else {
+      setEditing(false)
+      window.location.reload() // Recarga para unificar estados de la app
+    }
     setSaving(false)
-    setEditing(false)
-    window.location.reload()
   }
 
-  const displayName = user.full_name || user.email.split('@')[0]
-  const initials = displayName.charAt(0).toUpperCase()
+  const initials = fullName.charAt(0).toUpperCase() || '?'
 
   return (
     <div className="px-4 pt-6 pb-nav min-h-screen bg-[#0a0a0a]">
@@ -75,7 +100,7 @@ export default function ProfilePage() {
         </div>
         {!editing && (
           <>
-            <p className="font-bold text-lg text-white">{displayName}</p>
+            <p className="font-bold text-lg text-white">{fullName}</p>
             <p className="text-sm mt-1" style={{ color: '#555' }}>{user.email}</p>
           </>
         )}
