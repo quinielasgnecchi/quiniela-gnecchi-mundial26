@@ -241,7 +241,7 @@ export default function GroupsPage() {
         )}
       </div>
 
-      {/* NUEVO FORMATO: Encabezado estático "Grupos" y menú de iniciales */}
+      {/* Encabezado estático "Grupos" y menú de iniciales */}
       <div className="mb-6 pb-2 border-b border-[#1f1f1f]">
         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Grupos</span>
         <div className="overflow-x-auto scrollbar-none flex gap-2">
@@ -300,7 +300,7 @@ export default function GroupsPage() {
                     <span className="text-[11px] font-semibold truncate w-full text-center">{match.home_team}</span>
                   </button>
 
-                  {/* Botón Empate */}
+                  {/* Botón Empate - Corregido y Alineado */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'draw')}
                     disabled={hasSubmitted}
@@ -310,7 +310,7 @@ export default function GroupsPage() {
                         : 'bg-[#1a1a1a] border-transparent text-gray-400'
                     } ${!hasSubmitted && 'hover:bg-[#222]'}`}
                   >
-                    <span className="text-base leading-none">🫱🏻‍Glop</span>
+                    <span className="text-lg leading-none">🫱🏻‍🫲🏼</span>
                     <span className="text-[11px] font-semibold">Empate</span>
                   </button>
 
