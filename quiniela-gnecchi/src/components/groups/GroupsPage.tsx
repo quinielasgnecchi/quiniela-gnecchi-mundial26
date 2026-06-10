@@ -216,17 +216,17 @@ export default function GroupsPage() {
         </div>
       )}
 
-      {/* Barra de Progreso Dinámica (Se mantiene en verde #01CB3B) */}
+      {/* Barra de Progreso Dinámica corregida con Verde #01CB3B */}
       <div className="mb-6 p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
         <div className="flex justify-between items-center mb-2">
-          <span className="text-xs font-semibold text-gray-400">Progreso de tu quiniela</span>
+          <span className="text-xs font-semibold text-gray-400">Progreso Fase de Grupos</span>
           <span className="text-xs font-bold text-gray-200 font-mono">
             {completedMatches} de {totalMatches} partidos ({progressPercentage}%)
           </span>
         </div>
         <div className="w-full bg-[#1a1a1a] h-2.5 rounded-full overflow-hidden border border-[#222]">
           <div 
-            className="bg-[#01CB3B] h-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(1,203,59,0.3)]"
+            className="bg-[#01CB3B] h-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(1,203,59,0.4)]"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
@@ -278,7 +278,7 @@ export default function GroupsPage() {
                 {/* Contenedor Grid con altura simétrica */}
                 <div className="grid grid-cols-3 gap-2 items-stretch auto-rows-fr">
                   
-                  {/* Botón Equipo Local (Azul HEX #009AFE) */}
+                  {/* Botón Equipo Local */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'home')}
                     disabled={hasSubmitted}
@@ -297,7 +297,7 @@ export default function GroupsPage() {
                     <span className="text-[11px] font-semibold truncate w-full text-center">{match.home_team}</span>
                   </button>
 
-                  {/* Botón Empate (Azul bg-[#009AFE]) */}
+                  {/* Botón Empate */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'draw')}
                     disabled={hasSubmitted}
@@ -311,7 +311,7 @@ export default function GroupsPage() {
                     <span className="text-[11px] font-semibold">Empate</span>
                   </button>
 
-                  {/* Botón Equipo Visitante (Azul HEX #009AFE) */}
+                  {/* Botón Equipo Visitante */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'away')}
                     disabled={hasSubmitted}
