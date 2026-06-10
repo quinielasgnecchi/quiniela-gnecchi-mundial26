@@ -73,4 +73,69 @@ export default function Dashboard() {
   const progress = Math.round((done / total) * 100)
 
   // Countdown
-  const diff = DEAD
+  const diff = DEADLINE.getTime() - now.getTime()
+  const hours = Math.floor(diff / 3600000)
+  const minutes = Math.floor((diff % 3600000) / 60000)
+  const seconds = Math.floor((diff % 60000) / 1000)
+
+  // Priorizamos el nombre guardado en la base de datos o el estado del auth
+  const displayName = user?.full_name || user?.email?.split('@')[0] || 'Bienvenido'
+  const initials = displayName.charAt(0).toUpperCase()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-sm" style={{ color: '#555' }}>
+        Cargando quiniela...
+      </div>
+    )
+  }
+
+  return (
+    <div className="px-4 pt-6 pb-nav min-h-screen bg-[#0a0a0a]">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <p className="text-xs mb-1" style={{ color: '#555' }}>Bienvenido de vuelta</p>
+          <h1 className="text-xl font-bold text-white">{displayName} 👋</h1>
+        </div>
+        <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
+          style={{ background: '#1a1a1a', border: '2px solid #2a2a2a' }}>
+          {user?.avatar_url ? (
+            <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+          ) : (
+            <span className="font-bold text-white">{initials}</span>
+          )}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        <div className="p-4 rounded-2xl" style={{ background: '#141414', border: '1px solid #1f1f1f' }}>
+          <p className="text-xs mb-1" style={{ color: '#555' }}>Puntos</p>
+          <p className="text-3xl font-bold" style={{ color: '#244ffe' }}>{stats?.total_points ?? 0}</p>
+        </div>
+        <div className="p-4 rounded-2xl" style={{ background: '#141414', border: '1px solid #1f1f1f' }}>
+          <p className="text-xs mb-1" style={{ color: '#555' }}>Posición</p>
+          <p className="text-3xl font-bold text-white">{stats?.position ? `#${stats.position}` : '#1'}</p>
+        </div>
+      </div>
+
+      {/* Countdown */}
+      {phaseOpen && !stats?.submitted && (
+        <div className="p-4 rounded-2xl mb-5 text-center" style={{ background: 'rgba(36,79,254,0.08)', border: '1px solid rgba(36,79,254,0.2)' }}>
+          <p className="text-xs mb-2" style={{ color: '#555' }}>Tiempo para registrar pronósticos</p>
+          <p className="text-2xl font-bold" style={{ color: '#244ffe' }}>
+            {diff > 0 ? `${hours}h ${minutes}m ${seconds}s` : 'Cerrado'}
+          </p>
+          <p className="text-xs mt-1" style={{ color: '#555' }}>Cierra el 11 jun · 1:00pm hora México</p>
+        </div>
+      )}
+
+      {/* Phase card */}
+      <div className="p-5 rounded-2xl mb-5" style={{ background: '#141414', border: '1px solid #1f1f1f' }}>
+        <div className="flex items-center justify-between mb-3">
+          <p className="font-semibold text-white">Fase de grupos</p>
+          <div className="px-3 py-1 rounded-full text-xs font-medium"
+            style={phaseOpen
+              ? { background: 'rgba(0,202,66,0.15)', color: '#00CA42' }
+              : { background: 'rgba(234,0,1,0.1
