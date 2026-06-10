@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase'; // Ajusta la ruta según tu estructura de carpetas
-import type { Match } from '../types';
+import { supabase } from '../../../lib/supabase';
+import type { Match } from '../../types';
 
-// Tipo local que extiende el omit que tienes en tu archivo de configuración
 type GroupMatch = Omit<Match, 'status' | 'home_score' | 'away_score'>;
 
 interface GroupedMatches {
@@ -19,7 +18,6 @@ export default function GroupsPage() {
       try {
         setLoading(true);
         
-        // Hacemos la consulta directa a Supabase ordenando por fecha y hora
         const { data, error: supabaseError } = await supabase
           .from('matches')
           .select('id, group_name, match_date, match_time, home_team, away_team, phase')
@@ -30,7 +28,6 @@ export default function GroupsPage() {
         if (supabaseError) throw supabaseError;
 
         if (data) {
-          // Agrupamos los partidos por el nombre del grupo (A, B, C...)
           const grouped = data.reduce((acc: GroupedMatches, match: GroupMatch) => {
             const group = match.group_name;
             if (!acc[group]) {
@@ -69,7 +66,6 @@ export default function GroupsPage() {
     );
   }
 
-  // Obtenemos los nombres de los grupos ordenados alfabéticamente (A-L)
   const groupNames = Object.keys(groups).sort();
 
   return (
@@ -84,23 +80,19 @@ export default function GroupsPage() {
             key={groupName} 
             className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden"
           >
-            {/* Cabecera del Grupo */}
             <div className="bg-blue-600 px-4 py-3">
               <h2 className="text-xl font-bold text-white text-center">
                 GRUPO {groupName}
               </h2>
             </div>
 
-            {/* Lista de Partidos del Grupo */}
             <div className="divide-y divide-gray-100 p-4">
               {groups[groupName].map((match) => (
                 <div key={match.id} className="py-3 first:pt-0 last:pb-0">
-                  {/* Fecha y Hora */}
                   <div className="text-xs text-gray-500 font-medium mb-1 text-center">
                     {match.match_date} — {match.match_time}
                   </div>
 
-                  {/* Enfrentamiento */}
                   <div className="flex justify-between items-center px-2">
                     <span className="w-5/12 text-right font-medium text-gray-700 truncate">
                       {match.home_team}
