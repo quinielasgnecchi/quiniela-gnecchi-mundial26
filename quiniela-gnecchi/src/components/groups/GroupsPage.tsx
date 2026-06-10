@@ -73,41 +73,17 @@ export default function GroupsPage() {
   }
 
   async function handleSubmit() {
-  if (!user || !allDone || submitted || !phaseOpen) return
-  setSaving(true)
-
-  const rows = Object.entries(predictions).map(([matchId, pred]) => ({
-    user_id: user.id,
-    match_id: Number(matchId),
-    prediction: pred,
-    phase: 'groups',
-  }))
-
-  const { error } = await supabase
-    .from('predictions')
-    .upsert(rows, { onConflict: 'user_id,match_id' })
-
-  if (error) {
-    console.error(error)
-    setSaving(false)
-    return
-  }
-
-  const now = new Date().toISOString()
-
-  await supabase
-    .from('submissions')
-    .upsert({
-      user_id: user.id,
-      phase: 'groups',
-      submitted_at: now,
-      predictions_count: rows.length,
+    if (!user || !allDone || submitted) return
+    setSubmitting(true)
+    await handleSave()
+    const now = new Date().toISOString()
+    await supabase.from('submissions').upsert({
+      user_id: user.id, phase: 'groups', submitted_at: now, predictions_count: total,
     }, { onConflict: 'user_id,phase' })
-
-  setSubmitted(true)
-  setSubmittedAt(now)
-  setSaving(false)
-}
+    setSubmitted(true)
+    setSubmittedAt(now)
+    setSubmitting(false)
+  }
 
   return (
     <div className="pb-nav bg-[#0a0a0a] min-h-screen">
@@ -183,21 +159,22 @@ export default function GroupsPage() {
 
       {/* Bottom action bar */}
       {!submitted && phaseOpen && (
-    <div className="sticky bottom-0 px-4 py-3 bg-[#0a0a0a] border-t border-[#1a1a1a] mt-6">
-  {!allDone && (
-    <p className="text-xs text-center text-gray-500 mb-2">
-      Faltan {total - done} partidos por seleccionar
-    </p>
-  )}
-
-  <button
-    className="btn-primary"
-    onClick={handleSubmit}
-    disabled={!allDone || saving}
-  >
-    {saving ? 'Enviando...' : allDone ? '✅ Enviar quiniela' : `Completa los ${total - done} restantes`}
-  </button>
-</div>
+        <div className="fixed bottom-[72px] left-0 right-0 px-4 py-3" style={{background:'#0a0a0a',borderTop:'1px solid #1a1a1a'}}>
+          <div className="flex gap-3 max-w-md mx-auto">
+            {hasUnsaved && (
+              <button onClick={handleSave} disabled={saving}
+                className="flex-1 py-3.5 rounded-xl font-semibold text-white"
+                style={{background:'#1a1a1a',border:'1px solid #244ffe',color:'#244ffe'}}>
+                {saving ? 'Guardando...' : '💾 Guardar'}
+              </button>
+            )}
+            <button onClick={handleSubmit} disabled={!allDone || submitting}
+              className="flex-1 py-3.5 rounded-xl font-semibold text-white transition-opacity"
+              style={{background: allDone ? '#244ffe' : '#1a1a1a', opacity: allDone ? 1 : 0.5}}>
+              {submitting ? 'Enviando...' : allDone ? '✅ Enviar quiniela' : `Faltan ${total - done}`}
+            </button>
+          </div>
+        </div>
       )}
 
       {submitted && (
