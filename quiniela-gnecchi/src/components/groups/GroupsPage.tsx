@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 
-// Definimos la interfaz para evitar errores de TypeScript con los datos de la BD
+// Interfaz estricta para asegurar que los datos mapeados desde Supabase no rompan TypeScript
 interface Match {
   id: number
   group_name: string
@@ -32,20 +32,20 @@ export default function GroupsPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   
-  // ESTADOS DINÁMICOS
-  const [dbMatches, setDbMatches] = useState<Match[]>([]) // Partidos reales de la BD
+  // Estados Dinámicos conectados a tu Base de Datos
+  const [dbMatches, setDbMatches] = useState<Match[]>([])
   const [predictions, setPredictions] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [hasSubmitted, setHasSubmitted] = useState(false)
   const [activeGroup, setActiveGroup] = useState<string>('A')
 
-  // Cálculos basados en los partidos de la Base de Datos
+  // Cálculos reactivos de progreso basados en la respuesta real de la base de datos
   const totalMatches = dbMatches.length
   const completedMatches = Object.keys(predictions).length
   const progressPercentage = totalMatches > 0 ? Math.round((completedMatches / totalMatches) * 100) : 0
 
-  // Agrupamos los partidos que bajaron de Supabase
+  // Agrupación dinámica de partidos por la letra de su grupo
   const matchesByGroup = useMemo(() => {
     const groups: Record<string, Match[]> = {}
     dbMatches.forEach(match => {
@@ -64,28 +64,24 @@ export default function GroupsPage() {
     
     async function loadAllData() {
       try {
-        // 1. Descargar los partidos reales del backend para garantizar IDs perfectos
+        // 1. Descarga directa de partidos de la BD para garantizar sincronía de IDs
         const { data: fetchedMatches, error: matchesError } = await supabase
           .from('matches')
           .select('*')
-          // Si manejas fases en la tabla de partidos, descomenta la siguiente línea:
-          // .eq('phase', 'groups') 
           
         if (matchesError) throw matchesError
         
         if (fetchedMatches) {
-          // Ordenar numéricamente por ID para mantener la consistencia cronológica
           const sorted = (fetchedMatches as Match[]).sort((a, b) => a.id - b.id)
           setDbMatches(sorted)
           
-          // Establecer el primer grupo disponible como activo por defecto
           if (sorted.length > 0) {
             const firstGroup = sorted[0].group_name
             setActiveGroup(firstGroup)
           }
         }
 
-        // 2. Verificar si ya bloqueó su quiniela
+        // 2. Comprobación del bloqueo de envío definitivo
         const { data: submission } = await supabase
           .from('submissions')
           .select('id')
@@ -97,7 +93,7 @@ export default function GroupsPage() {
           setHasSubmitted(true)
         }
 
-        // 3. Traer el historial existente
+        // 3. Carga del historial previo de pronósticos guardados
         const { data: userPreds, error: predsError } = await supabase
           .from('predictions')
           .select('match_id, prediction')
@@ -113,7 +109,7 @@ export default function GroupsPage() {
           setPredictions(initialPreds)
         }
       } catch (err) {
-        console.error("Error crítico de sincronización:", err)
+        console.error("Error de sincronización en carga:", err)
       } finally {
         setLoading(false)
       }
@@ -141,10 +137,11 @@ export default function GroupsPage() {
     setSaving(true)
 
     try {
-      // SOLUCIÓN TOTAL: Construimos el payload usando estrictamente los registros e IDs directos de la BD
+      // SOLUCIÓN AL ERROR: Construimos el payload extrayendo los IDs puros que devolvió el servidor 
+      // y cruzándolo con lo que seleccionó el usuario en pantalla.
       const payload = dbMatches.map((match) => ({
         user_id: user.id,
-        match_id: match.id, // ID 100% verificado por el backend
+        match_id: match.id, 
         prediction: predictions[match.id] || '',
         phase: 'groups'
       }))
@@ -203,14 +200,14 @@ export default function GroupsPage() {
         </button>
       </div>
 
-      {/* Alerta visual si ya está bloqueado */}
+      {/* Alerta de bloqueo */}
       {hasSubmitted && (
         <div className="mb-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs text-center font-medium">
           🔒 Ya has enviado tus respuestas para esta fase. Puedes ver tu historial de selecciones pero no modificarlo.
         </div>
       )}
 
-      {/* Barra de Progreso Dinámica (#01CB3B) */}
+      {/* Barra de Progreso Dinámica - Color Verde #01CB3B */}
       <div className="mb-6 p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
         <div className="flex justify-between items-center mb-2">
           <span className="text-xs font-semibold text-gray-400">Progreso Fase de Grupos</span>
@@ -255,7 +252,7 @@ export default function GroupsPage() {
         </div>
       </div>
 
-      {/* Renderizado único del Grupo Activo */}
+      {/* Renderizado del Grupo Activo */}
       {activeGroup && matchesByGroup[activeGroup] && (
         <div className="mb-10">
           <div className="flex items-center gap-2 mb-4">
@@ -274,7 +271,7 @@ export default function GroupsPage() {
                 
                 <div className="grid grid-cols-3 gap-2 items-stretch auto-rows-fr">
                   
-                  {/* Botón Equipo Local */}
+                  {/* Botón Equipo Local - Color Azul #009AFE */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'home')}
                     disabled={hasSubmitted}
@@ -293,7 +290,7 @@ export default function GroupsPage() {
                     <span className="text-[11px] font-semibold truncate w-full text-center">{match.home_team}</span>
                   </button>
 
-                  {/* Botón Empate */}
+                  {/* Botón Empate - Color Azul #009AFE */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'draw')}
                     disabled={hasSubmitted}
@@ -307,7 +304,7 @@ export default function GroupsPage() {
                     <span className="text-[11px] font-semibold">Empate</span>
                   </button>
 
-                  {/* Botón Equipo Visitante */}
+                  {/* Botón Equipo Visitante - Color Azul #009AFE */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'away')}
                     disabled={hasSubmitted}
