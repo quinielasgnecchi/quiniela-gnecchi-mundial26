@@ -2,12 +2,11 @@
 // Registrate gratis en https://www.football-data.org/client/register
 // Pon tu API key en Cloudflare como: VITE_FOOTBALL_API_KEY
 
-const API_KEY = import.meta.env.VITE_FOOTBALL_API_KEY ?? ''
+const API_KEY = import.meta.env.VITE_FOOTBALL_API_KEY ?? '831469173f0a456d86905f61175a8204'
 const BASE_URL = 'https://api.football-data.org/v4'
 
-// Mundial 2026 competition ID (se confirma cuando empiece el torneo)
-// Por ahora usamos el ID del Mundial 2022 como referencia: 2000
-const WC_ID = 2000
+// Código oficial para la Copa Mundial de la FIFA en la v4 de la API
+const WC_ID = 'WC'
 
 export interface LiveMatch {
   id: number
@@ -29,14 +28,15 @@ export async function fetchLiveMatches(): Promise<LiveMatch[]> {
     const data = await res.json()
     return (data.matches ?? []).map((m: any) => ({
       id: m.id,
-      homeTeam: m.homeTeam.name,
-      awayTeam: m.awayTeam.name,
+      homeTeam: m.homeTeam?.name || m.homeTeam?.shortName || 'Desconocido',
+      awayTeam: m.awayTeam?.name || m.awayTeam?.shortName || 'Desconocido',
       homeScore: m.score?.fullTime?.home ?? null,
       awayScore: m.score?.fullTime?.away ?? null,
       status: m.status,
       minute: m.minute,
     }))
-  } catch {
+  } catch (error) {
+    console.error('Error fetching live matches:', error)
     return []
   }
 }
@@ -52,13 +52,14 @@ export async function fetchTodayMatches(): Promise<LiveMatch[]> {
     const data = await res.json()
     return (data.matches ?? []).map((m: any) => ({
       id: m.id,
-      homeTeam: m.homeTeam.name,
-      awayTeam: m.awayTeam.name,
+      homeTeam: m.homeTeam?.name || m.homeTeam?.shortName || 'Desconocido',
+      awayTeam: m.awayTeam?.name || m.awayTeam?.shortName || 'Desconocido',
       homeScore: m.score?.fullTime?.home ?? null,
       awayScore: m.score?.fullTime?.away ?? null,
       status: m.status,
     }))
-  } catch {
+  } catch (error) {
+    console.error('Error fetching today matches:', error)
     return []
   }
 }
