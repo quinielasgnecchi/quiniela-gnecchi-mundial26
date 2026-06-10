@@ -73,17 +73,41 @@ export default function GroupsPage() {
   }
 
   async function handleSubmit() {
-    if (!user || !allDone || submitted) return
-    setSubmitting(true)
-    await handleSave()
-    const now = new Date().toISOString()
-    await supabase.from('submissions').upsert({
-      user_id: user.id, phase: 'groups', submitted_at: now, predictions_count: total,
-    }, { onConflict: 'user_id,phase' })
-    setSubmitted(true)
-    setSubmittedAt(now)
-    setSubmitting(false)
+  if (!user || !allDone || submitted || !phaseOpen) return
+  setSaving(true)
+
+  const rows = Object.entries(predictions).map(([matchId, pred]) => ({
+    user_id: user.id,
+    match_id: Number(matchId),
+    prediction: pred,
+    phase: 'groups',
+  }))
+
+  const { error } = await supabase
+    .from('predictions')
+    .upsert(rows, { onConflict: 'user_id,match_id' })
+
+  if (error) {
+    console.error(error)
+    setSaving(false)
+    return
   }
+
+  const now = new Date().toISOString()
+
+  await supabase
+    .from('submissions')
+    .upsert({
+      user_id: user.id,
+      phase: 'groups',
+      submitted_at: now,
+      predictions_count: rows.length,
+    }, { onConflict: 'user_id,phase' })
+
+  setSubmitted(true)
+  setSubmittedAt(now)
+  setSaving(false)
+}
 
   return (
     <div className="pb-nav bg-[#0a0a0a] min-h-screen">
