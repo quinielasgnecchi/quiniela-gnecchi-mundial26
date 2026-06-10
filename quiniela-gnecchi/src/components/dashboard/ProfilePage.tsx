@@ -11,7 +11,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Forzamos la carga directa desde la tabla 'profiles'
+  // Carga directa desde la tabla 'profiles'
   useEffect(() => {
     async function loadProfile() {
       if (!user) return
@@ -30,7 +30,6 @@ export default function ProfilePage() {
         }
       } catch (err) {
         console.error('Error al cargar perfil real:', err)
-        // Fallback inmediato si no encuentra fila
         setFullName(user.email?.split('@')[0] || '')
       } finally {
         setLoading(false)
@@ -57,10 +56,9 @@ export default function ProfilePage() {
     if (avatarFile) {
       try {
         const ext = avatarFile.name.split('.').pop()?.toLowerCase() || 'png'
-        // Agregamos un timestamp dinámico para evitar problemas de caché en el almacenamiento
+        // Ruta única dinámica usando subcarpeta por usuario y timestamp para saltar la caché
         const filePath = `${user.id}/${Date.now()}.${ext}`
 
-        // Subida al almacenamiento
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('avatars')
           .upload(filePath, avatarFile, { 
@@ -71,7 +69,6 @@ export default function ProfilePage() {
         if (uploadError) throw uploadError
 
         if (uploadData) {
-          // Obtención de la URL pública oficial
           const { data: urlData } = supabase.storage
             .from('avatars')
             .getPublicUrl(uploadData.path)
@@ -88,7 +85,7 @@ export default function ProfilePage() {
       }
     }
 
-    // Guardado directo y limpio en la base de datos
+    // Upsert limpio en la base de datos de perfiles
     const { error } = await supabase.from('profiles').upsert({
       id: user.id,
       email: user.email,
@@ -100,7 +97,7 @@ export default function ProfilePage() {
       alert('Error en Supabase al guardar el nombre: ' + error.message)
     } else {
       setEditing(false)
-      window.location.reload() // Recarga para unificar estados de la app
+      window.location.reload()
     }
     setSaving(false)
   }
@@ -110,10 +107,15 @@ export default function ProfilePage() {
   return (
     <div className="px-4 pt-6 pb-nav min-h-screen bg-[#0a0a0a]">
       <h1 className="text-xl font-bold mb-6 text-white">Mi perfil</h1>
+      
       <div className="flex flex-col items-center mb-8">
         <div className="relative mb-3">
           <div className="w-24 h-24 rounded-full overflow-hidden flex items-center justify-center" style={{ background: '#1a1a1a', border: '2px solid #2a2a2a' }}>
-            {avatarPreview ? <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" /> : <span className="text-3xl font-bold text-white">{initials}</span>}
+            {avatarPreview ? (
+              <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-3xl font-bold text-white">{initials}</span>
+            )}
           </div>
           {editing && (
             <label className="absolute bottom-0 right-0 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer" style={{ background: '#244ffe' }}>
@@ -122,6 +124,7 @@ export default function ProfilePage() {
             </label>
           )}
         </div>
+        
         {!editing && (
           <>
             <p className="font-bold text-lg text-white">{fullName}</p>
@@ -155,3 +158,6 @@ export default function ProfilePage() {
           </button>
         </div>
       )}
+    </div>
+  )
+}
