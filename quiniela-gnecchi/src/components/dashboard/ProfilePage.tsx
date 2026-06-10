@@ -51,7 +51,19 @@ export default function ProfilePage() {
 
     setSaving(false)
     setEditing(false)
-    window.location.reload()
+    const { data: updated } = await supabase
+  .from('profiles')
+  .update({
+    full_name: fullName,
+    avatar_url: avatarUrl,
+  })
+  .eq('id', user!.id)
+  .select()
+  .single()
+
+if (updated) {
+  setEditing(false)
+}
   }
 
   const displayName = user.full_name && !user.full_name.includes('@') ? user.full_name : '—'
