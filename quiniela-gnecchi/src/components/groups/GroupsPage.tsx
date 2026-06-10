@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../../lib/supabase';
-import type { Match } from '../../types';
+import { supabase } from '/src/lib/supabase';
+import type { Match } from '/src/types';
 
 type GroupMatch = Omit<Match, 'status' | 'home_score' | 'away_score'>;
 
