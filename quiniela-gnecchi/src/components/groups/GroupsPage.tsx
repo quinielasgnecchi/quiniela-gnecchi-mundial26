@@ -134,14 +134,6 @@ export default function GroupsPage() {
     }
   }
 
-  // Helper para mostrar visualmente el resultado seleccionado de forma elegante
-  const renderSelectedLabel = (match: Match, val: string) => {
-    if (val === 'L') return `Ganador: ${match.home_team}`
-    if (val === 'V') return `Ganador: ${match.away_team}`
-    if (val === 'E') return 'Empate'
-    return 'Sin pronóstico'
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] text-white">
@@ -165,7 +157,8 @@ export default function GroupsPage() {
 
       <div className="flex flex-col gap-4">
         {dbMatches.map((match) => {
-          const userPred = predictions[match.id] || '';
+          const currentPred = predictions[match.id] || '';
+          
           return (
             <div key={match.id} className="p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-800 text-gray-400 uppercase tracking-wider">
@@ -180,14 +173,15 @@ export default function GroupsPage() {
 
                 <div className="flex flex-col gap-2">
                   {hasSubmitted ? (
-                    // Vista fija y limpia si ya se envió la quiniela
-                    <div className="bg-[#1a1a1a] border border-[#01CB3B]/30 rounded-xl py-2 px-1 text-center text-[11px] font-bold text-[#01CB3B]">
-                      {renderSelectedLabel(match, userPred)}
+                    <div className="text-xs font-bold text-[#01CB3B] bg-[#01CB3B]/10 border border-[#01CB3B]/20 py-2 rounded-xl">
+                      {currentPred === 'L' && `Gana ${match.home_team}`}
+                      {currentPred === 'V' && `Gana ${match.away_team}`}
+                      {currentPred === 'E' && 'Empate'}
+                      {!currentPred && 'Sin seleccionar'}
                     </div>
                   ) : (
-                    // Selector interactivo si aún no se ha enviado
                     <select
-                      value={userPred}
+                      value={currentPred}
                       onChange={(e) => handlePredictionChange(match.id, e.target.value)}
                       className="w-full bg-[#1a1a1a] border border-[#262626] rounded-xl py-2 text-center text-xs font-bold text-white focus:outline-none focus:border-[#009AFE]"
                     >
