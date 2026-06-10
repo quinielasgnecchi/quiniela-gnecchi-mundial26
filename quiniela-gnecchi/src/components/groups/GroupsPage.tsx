@@ -216,7 +216,7 @@ export default function GroupsPage() {
         </div>
       )}
 
-      {/* Barra de Progreso Dinámica corregida con Verde #01CB3B */}
+      {/* Barra de Progreso Dinámica (#01CB3B) */}
       <div className="mb-6 p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
         <div className="flex justify-between items-center mb-2">
           <span className="text-xs font-semibold text-gray-400">Progreso Fase de Grupos</span>
@@ -241,21 +241,24 @@ export default function GroupsPage() {
         )}
       </div>
 
-      {/* Selector de Grupos Horizontal (Tabs) */}
-      <div className="mb-6 overflow-x-auto scrollbar-none flex gap-2 pb-2 border-b border-[#1f1f1f]">
-        {sortedGroupNames.map((groupName) => (
-          <button
-            key={groupName}
-            onClick={() => setActiveGroup(groupName)}
-            className={`flex-none px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
-              activeGroup === groupName
-                ? 'bg-[#009AFE] border-[#33adff] text-white'
-                : 'bg-[#141414] border-[#1f1f1f] text-gray-400 hover:bg-[#1a1a1a]'
-            }`}
-          >
-            Grupo {groupName}
-          </button>
-        ))}
+      {/* NUEVO FORMATO: Encabezado estático "Grupos" y menú de iniciales */}
+      <div className="mb-6 pb-2 border-b border-[#1f1f1f]">
+        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Grupos</span>
+        <div className="overflow-x-auto scrollbar-none flex gap-2">
+          {sortedGroupNames.map((groupName) => (
+            <button
+              key={groupName}
+              onClick={() => setActiveGroup(groupName)}
+              className={`flex-none w-9 h-9 rounded-xl text-xs font-bold transition-all border flex items-center justify-center ${
+                activeGroup === groupName
+                  ? 'bg-[#009AFE] border-[#33adff] text-white'
+                  : 'bg-[#141414] border-[#1f1f1f] text-gray-400 hover:bg-[#1a1a1a]'
+              }`}
+            >
+              {groupName}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Renderizado único del Grupo Activo */}
@@ -265,7 +268,7 @@ export default function GroupsPage() {
             <div className="w-6 h-6 bg-[#009AFE] rounded-md flex items-center justify-center font-bold text-xs text-white">
               {activeGroup}
             </div>
-            <h2 className="text-base font-bold text-gray-200">Partidos del Grupo {activeGroup}</h2>
+            <h2 className="text-base font-bold text-gray-200">Partidos Grupo {activeGroup}</h2>
           </div>
           
           <div className="flex flex-col gap-4">
@@ -307,7 +310,7 @@ export default function GroupsPage() {
                         : 'bg-[#1a1a1a] border-transparent text-gray-400'
                     } ${!hasSubmitted && 'hover:bg-[#222]'}`}
                   >
-                    <span className="text-base leading-none">🫱🏻‍🫲🏼</span>
+                    <span className="text-base leading-none">🫱🏻‍Glop</span>
                     <span className="text-[11px] font-semibold">Empate</span>
                   </button>
 
