@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 
-// Interfaz estricta para asegurar que los datos mapeados desde Supabase no rompan TypeScript
 interface Match {
   id: number
   group_name: string
@@ -32,7 +31,6 @@ export default function GroupsPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   
-  // Estados Dinámicos conectados a tu Base de Datos
   const [dbMatches, setDbMatches] = useState<Match[]>([])
   const [predictions, setPredictions] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(true)
@@ -40,12 +38,10 @@ export default function GroupsPage() {
   const [hasSubmitted, setHasSubmitted] = useState(false)
   const [activeGroup, setActiveGroup] = useState<string>('A')
 
-  // Cálculos reactivos de progreso basados en la respuesta real de la base de datos
   const totalMatches = dbMatches.length
   const completedMatches = Object.keys(predictions).length
   const progressPercentage = totalMatches > 0 ? Math.round((completedMatches / totalMatches) * 100) : 0
 
-  // Agrupación dinámica de partidos por la letra de su grupo
   const matchesByGroup = useMemo(() => {
     const groups: Record<string, Match[]> = {}
     dbMatches.forEach(match => {
@@ -64,7 +60,7 @@ export default function GroupsPage() {
     
     async function loadAllData() {
       try {
-        // 1. Descarga directa de partidos de la BD para garantizar sincronía de IDs
+        // 1. Descargar partidos reales de la BD
         const { data: fetchedMatches, error: matchesError } = await supabase
           .from('matches')
           .select('*')
@@ -81,19 +77,19 @@ export default function GroupsPage() {
           }
         }
 
-        // 2. Comprobación del bloqueo de envío definitivo
-        const { data: submission } = await supabase
+        // 2. Verificar de forma estricta si ya existe un registro de entrega
+        const { data: submission, error: subError } = await supabase
           .from('submissions')
           .select('id')
           .eq('user_id', user.id)
           .eq('phase', 'groups')
-          .single()
+          .maybeSingle() // Evita lanzar excepciones molestas si devuelve vacío
 
         if (submission) {
           setHasSubmitted(true)
         }
 
-        // 3. Carga del historial previo de pronósticos guardados
+        // 3. Cargar respuestas guardadas del usuario
         const { data: userPreds, error: predsError } = await supabase
           .from('predictions')
           .select('match_id, prediction')
@@ -109,7 +105,7 @@ export default function GroupsPage() {
           setPredictions(initialPreds)
         }
       } catch (err) {
-        console.error("Error de sincronización en carga:", err)
+        console.error("Error cargando el estado de visualización:", err)
       } finally {
         setLoading(false)
       }
@@ -119,6 +115,7 @@ export default function GroupsPage() {
   }, [user])
 
   const handleSelectPrediction = (matchId: number, value: string) => {
+    // Si ya fue enviado, bloqueamos cualquier mutación del estado en interfaz
     if (hasSubmitted) return
     setPredictions(prev => ({ ...prev, [matchId]: value }))
   }
@@ -137,8 +134,6 @@ export default function GroupsPage() {
     setSaving(true)
 
     try {
-      // SOLUCIÓN AL ERROR: Construimos el payload extrayendo los IDs puros que devolvió el servidor 
-      // y cruzándolo con lo que seleccionó el usuario en pantalla.
       const payload = dbMatches.map((match) => ({
         user_id: user.id,
         match_id: match.id, 
@@ -184,7 +179,9 @@ export default function GroupsPage() {
       <div className="flex justify-between items-center mb-5">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Fase de Grupos</h1>
-          <p className="text-xs text-gray-500 mt-1">Selecciona el ganador de cada partido</p>
+          <p className="text-xs text-gray-500 mt-1">
+            {hasSubmitted ? 'Modo Visualización · Respuestas Guardadas' : 'Selecciona el ganador de cada partido'}
+          </p>
         </div>
         
         <button 
@@ -200,14 +197,14 @@ export default function GroupsPage() {
         </button>
       </div>
 
-      {/* Alerta de bloqueo */}
+      {/* Alerta de bloqueo visual */}
       {hasSubmitted && (
-        <div className="mb-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs text-center font-medium">
-          🔒 Ya has enviado tus respuestas para esta fase. Puedes ver tu historial de selecciones pero no modificarlo.
+        <div className="mb-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs text-center font-medium animate-pulse">
+          🔒 Modo lectura activo. Tus respuestas están consolidadas y no admiten más cambios.
         </div>
       )}
 
-      {/* Barra de Progreso Dinámica - Color Verde #01CB3B */}
+      {/* Barra de Progreso Dinámica */}
       <div className="mb-6 p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
         <div className="flex justify-between items-center mb-2">
           <span className="text-xs font-semibold text-gray-400">Progreso Fase de Grupos</span>
@@ -221,18 +218,22 @@ export default function GroupsPage() {
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
-        {totalMatches - completedMatches > 0 ? (
+        {hasSubmitted ? (
+          <p className="text-[10px] text-[#01CB3B] font-bold mt-2 text-right">
+            ✓ Pronósticos enviados correctamente.
+          </p>
+        ) : totalMatches - completedMatches > 0 ? (
           <p className="text-[10px] text-gray-500 mt-2 text-right">
             Te faltan {totalMatches - completedMatches} partidos por rellenar.
           </p>
         ) : (
-          <p className="text-[10px] text-[#01CB3B] font-bold mt-2 text-right flex items-center justify-end gap-1">
+          <p className="text-[10px] text-[#01CB3B] font-bold mt-2 text-right">
             🎉 ¡Listo! Has completado todos los partidos.
           </p>
         )}
       </div>
 
-      {/* Encabezado estático "Grupos" y menú de iniciales */}
+      {/* Menú de iniciales de grupos */}
       <div className="mb-6 pb-2 border-b border-[#1f1f1f]">
         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Grupos</span>
         <div className="overflow-x-auto scrollbar-none flex gap-2">
@@ -252,7 +253,7 @@ export default function GroupsPage() {
         </div>
       </div>
 
-      {/* Renderizado del Grupo Activo */}
+      {/* Renderizado de Partidos */}
       {activeGroup && matchesByGroup[activeGroup] && (
         <div className="mb-10">
           <div className="flex items-center gap-2 mb-4">
@@ -271,7 +272,7 @@ export default function GroupsPage() {
                 
                 <div className="grid grid-cols-3 gap-2 items-stretch auto-rows-fr">
                   
-                  {/* Botón Equipo Local - Color Azul #009AFE */}
+                  {/* Botón Equipo Local */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'home')}
                     disabled={hasSubmitted}
@@ -279,7 +280,7 @@ export default function GroupsPage() {
                       predictions[match.id] === 'home' 
                         ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
                         : 'bg-[#1a1a1a] border-transparent text-gray-400'
-                    } ${!hasSubmitted && 'hover:bg-[#222]'}`}
+                    } ${hasSubmitted ? 'cursor-default opacity-80' : 'hover:bg-[#222]'}`}
                   >
                     <img 
                       src={`https://flagcdn.com/w80/${FLAG_MAP[match.home_team] || 'un'}.png`} 
@@ -290,7 +291,7 @@ export default function GroupsPage() {
                     <span className="text-[11px] font-semibold truncate w-full text-center">{match.home_team}</span>
                   </button>
 
-                  {/* Botón Empate - Color Azul #009AFE */}
+                  {/* Botón Empate */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'draw')}
                     disabled={hasSubmitted}
@@ -298,13 +299,13 @@ export default function GroupsPage() {
                       predictions[match.id] === 'draw' 
                         ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
                         : 'bg-[#1a1a1a] border-transparent text-gray-400'
-                    } ${!hasSubmitted && 'hover:bg-[#222]'}`}
+                    } ${hasSubmitted ? 'cursor-default opacity-80' : 'hover:bg-[#222]'}`}
                   >
                     <span className="text-lg leading-none">🫱🏻‍🫲🏼</span>
                     <span className="text-[11px] font-semibold">Empate</span>
                   </button>
 
-                  {/* Botón Equipo Visitante - Color Azul #009AFE */}
+                  {/* Botón Equipo Visitante */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'away')}
                     disabled={hasSubmitted}
@@ -312,7 +313,7 @@ export default function GroupsPage() {
                       predictions[match.id] === 'away' 
                         ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
                         : 'bg-[#1a1a1a] border-transparent text-gray-400'
-                    } ${!hasSubmitted && 'hover:bg-[#222]'}`}
+                    } ${hasSubmitted ? 'cursor-default opacity-80' : 'hover:bg-[#222]'}`}
                   >
                     <img 
                       src={`https://flagcdn.com/w80/${FLAG_MAP[match.away_team] || 'un'}.png`} 
