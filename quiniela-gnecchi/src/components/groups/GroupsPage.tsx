@@ -148,10 +148,12 @@ export default function GroupsPage() {
     setSaving(true)
 
     try {
-      const payload = Object.entries(predictions).map(([matchId, value]) => ({
+      // CORRECCIÓN DIRECTA: Se mapea usando el array nativo de partidos locales
+      // para mantener intacta la correspondencia numérica de los IDs.
+      const payload = GROUP_MATCHES.map((match) => ({
         user_id: user.id,
-        match_id: parseInt(matchId),
-        prediction: value,
+        match_id: match.id,
+        prediction: predictions[match.id] || '',
         phase: 'groups'
       }))
 
@@ -300,7 +302,7 @@ export default function GroupsPage() {
                     <span className="text-[11px] font-semibold truncate w-full text-center">{match.home_team}</span>
                   </button>
 
-                  {/* Botón Empate - Corregido y Alineado */}
+                  {/* Botón Empate */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'draw')}
                     disabled={hasSubmitted}
