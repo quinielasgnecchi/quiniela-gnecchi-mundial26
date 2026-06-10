@@ -33,9 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      setTimeout(() => {
-  fetchProfile(session.user.id)
-}, 0)
+      fetchProfile(session.user.id)
     }
 
     init()
@@ -58,45 +56,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   async function fetchProfile(userId: string) {
-  try {
-    const { data: sessionData } = await supabase.auth.getSession()
-    const email = sessionData.session?.user?.email ?? ''
-    const defaultName = email.split('@')[0]
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const email = sessionData.session?.user?.email ?? ''
+      const defaultName = email.split('@')[0]
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle()
-
-    if (!profile) {
-      const { data: inserted } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
-        .insert({
-          id: userId,
-          email,
-          full_name: defaultName,
-          role: 'user',
-        })
-        .select()
-        .single()
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()
 
-      setUser(inserted)
-      return
-    }
+      if (!profile) {
+        const { data: inserted } = await supabase
+          .from('profiles')
+          .insert({
+            id: userId,
+            email,
+            full_name: defaultName,
+            role: 'user',
+          })
+          .select()
+          .single()
 
-    setUser({
-      ...profile,
-      full_name: profile.full_name || defaultName,
-    })
-
-  } catch (err) {
-    console.error('fetchProfile error:', err)
-    setUser(null)
-  } finally {
-    setLoading(false)
-  }
-}
+        setUser(inserted)
+        return
+      }
 
       const fixedProfile = {
         ...profile,
@@ -104,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(fixedProfile)
+
     } catch (err) {
       console.error('Auth error:', err)
       setUser(null)
