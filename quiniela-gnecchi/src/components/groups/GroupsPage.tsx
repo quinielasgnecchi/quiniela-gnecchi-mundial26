@@ -299,7 +299,7 @@ export default function GroupsPage() {
                         : 'bg-[#1a1a1a] border-transparent text-gray-400'
                     } ${hasSubmitted ? 'cursor-default opacity-60' : 'hover:bg-[#222]'}`}
                   >
-                    <span className="text-lg leading-none">🫱_🫲🏼</span>
+                    <span className="text-lg leading-none">🫱🏻‍🫲🏼</span>
                     <span className="text-[11px] font-semibold">Empate</span>
                   </button>
 
