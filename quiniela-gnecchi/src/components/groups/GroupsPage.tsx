@@ -74,7 +74,7 @@ export default function GroupsPage() {
     }
 
     loadInitialData()
-  } Array.from([user]))
+  }, [user])
 
   const handlePredictionChange = (matchId: string, value: string) => {
     if (hasSubmitted) return
