@@ -1,3 +1,6 @@
+bash
+
+cat > /home/claude/quiniela-gnecchi/src/hooks/useAuth.tsx << 'EOF'
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import type { User } from '../types'
@@ -6,9 +9,10 @@ interface AuthContextType {
   user: User | null
   loading: boolean
   signOut: () => Promise<void>
+  refreshUser: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, loading: true, signOut: async () => {} })
+const AuthContext = createContext<AuthContextType>({ user: null, loading: true, signOut: async () => {}, refreshUser: async () => {} })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -33,10 +37,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data) {
       setUser(data)
     } else {
-      // Fallback: use auth session data directly
-      setUser({ id: userId, email, full_name: email.split('@')[0], role: 'user', created_at: '' })
+      const fallback = { id: userId, email, full_name: email.split('@')[0], role: 'user' as const, created_at: '' }
+      setUser(fallback)
     }
     setLoading(false)
+  }
+
+  async function refreshUser() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user) await fetchProfile(session.user.id, session.user.email ?? '')
   }
 
   async function signOut() {
@@ -44,7 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
-  return <AuthContext.Provider value={{ user, loading, signOut }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, loading, signOut, refreshUser }}>{children}</AuthContext.Provider>
 }
 
 export const useAuth = () => useContext(AuthContext)
+EOF
+echo "done"
