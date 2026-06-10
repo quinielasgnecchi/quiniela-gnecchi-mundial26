@@ -12,7 +12,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (user) {
-      setFullName(user.full_name && !user.full_name.includes('@') ? user.full_name : '')
+      setFullName(user.full_name || user.email.split('@')[0])
       setAvatarPreview(user.avatar_url ?? '')
     }
   }, [user])
@@ -29,12 +29,13 @@ export default function ProfilePage() {
   async function handleSave() {
     if (!fullName.trim()) return
     setSaving(true)
-    let avatarUrl = user!.avatar_url ?? ''
 
+    let avatarUrl = user!.avatar_url ?? ''
     if (avatarFile) {
       const ext = avatarFile.name.split('.').pop()
       const { data: uploadData } = await supabase.storage
-        .from('avatars').upload(`${user!.id}.${ext}`, avatarFile, { upsert: true })
+        .from('avatars')
+        .upload(`${user!.id}.${ext}`, avatarFile, { upsert: true })
       if (uploadData) {
         const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(uploadData.path)
         avatarUrl = urlData.publicUrl
@@ -54,24 +55,19 @@ export default function ProfilePage() {
     window.location.reload()
   }
 
-  const displayName = user.full_name && !user.full_name.includes('@') ? user.full_name : '—'
-  const initials = displayName !== '—' ? displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()
+  const displayName = user.full_name || user.email.split('@')[0]
+  const initials = displayName.charAt(0).toUpperCase()
 
   return (
     <div className="px-4 pt-6 pb-nav min-h-screen bg-[#0a0a0a]">
       <h1 className="text-xl font-bold mb-6 text-white">Mi perfil</h1>
-
       <div className="flex flex-col items-center mb-8">
         <div className="relative mb-3">
-          <div className="w-24 h-24 rounded-full overflow-hidden flex items-center justify-center"
-            style={{background:'#1a1a1a',border:'2px solid #2a2a2a'}}>
-            {avatarPreview
-              ? <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
-              : <span className="text-3xl font-bold text-white">{initials}</span>}
+          <div className="w-24 h-24 rounded-full overflow-hidden flex items-center justify-center" style={{ background: '#1a1a1a', border: '2px solid #2a2a2a' }}>
+            {avatarPreview ? <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" /> : <span className="text-3xl font-bold text-white">{initials}</span>}
           </div>
           {editing && (
-            <label className="absolute bottom-0 right-0 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer"
-              style={{background:'#244ffe'}}>
+            <label className="absolute bottom-0 right-0 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer" style={{ background: '#244ffe' }}>
               <span className="text-sm">📷</span>
               <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
             </label>
@@ -80,7 +76,7 @@ export default function ProfilePage() {
         {!editing && (
           <>
             <p className="font-bold text-lg text-white">{displayName}</p>
-            <p className="text-sm mt-1" style={{color:'#555'}}>{user.email}</p>
+            <p className="text-sm mt-1" style={{ color: '#555' }}>{user.email}</p>
           </>
         )}
       </div>
@@ -88,32 +84,24 @@ export default function ProfilePage() {
       {editing ? (
         <div className="flex flex-col gap-4">
           <div>
-            <label className="text-xs mb-1 block" style={{color:'#888'}}>Nombre completo</label>
-            <input className="input-dark" placeholder="Ej: Juan García" value={fullName} onChange={e => setFullName(e.target.value)} />
+            <label className="text-xs mb-1 block" style={{ color: '#888' }}>Nombre de usuario</label>
+            <input className="input-dark" value={fullName} onChange={e => setFullName(e.target.value)} />
           </div>
           <div className="flex gap-3">
-            <button className="btn-primary" style={{background:'#1a1a1a',border:'1px solid #2a2a2a'}} onClick={() => setEditing(false)}>
+            <button className="btn-primary" style={{ background: '#1a1a1a', border: '1px solid #2a2a2a' }} onClick={() => setEditing(false)}>
               Cancelar
             </button>
-            <button className="btn-primary" style={{background:'#244ffe'}} onClick={handleSave} disabled={saving || !fullName.trim()}>
+            <button className="btn-primary" style={{ background: '#244ffe' }} onClick={handleSave} disabled={saving || !fullName.trim()}>
               {saving ? 'Guardando...' : 'Guardar'}
             </button>
           </div>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          <button className="btn-primary" style={{background:'#1a1a1a',border:'1px solid #2a2a2a'}} onClick={() => setEditing(true)}>
+          <button className="btn-primary" style={{ background: '#1a1a1a', border: '1px solid #2a2a2a' }} onClick={() => setEditing(true)}>
             ✏️ Editar nombre y foto
           </button>
-          {user.role === 'admin' && (
-            <button className="btn-primary" style={{background:'rgba(36,79,254,0.1)',border:'1px solid rgba(36,79,254,0.3)'}}
-              onClick={() => window.location.href = '/admin'}>
-              🛡 Panel de administrador
-            </button>
-          )}
-          <button className="btn-primary mt-4"
-            style={{background:'rgba(234,0,1,0.1)',border:'1px solid rgba(234,0,1,0.2)',color:'#EA0001'}}
-            onClick={signOut}>
+          <button className="btn-primary mt-4" style={{ background: 'rgba(234,0,1,0.1)', border: '1px solid rgba(234,0,1,0.2)', color: '#EA0001' }} onClick={signOut}>
             Cerrar sesión
           </button>
         </div>
