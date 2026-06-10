@@ -106,4 +106,24 @@ export default function GroupsPage() {
     setPredictions(prev => ({ ...prev, [matchId]: value }))
   }
 
-  const handleSave
+  const handleSave = async () => {
+    if (!user) return
+    setSaving(true)
+
+    try {
+      const payload = Object.entries(predictions).map(([matchId, value]) => ({
+        user_id: user.id,
+        match_id: parseInt(matchId),
+        prediction: value,
+        phase: 'groups'
+      }))
+
+      if (payload.length === 0) {
+        alert("Selecciona al menos un pronóstico antes de guardar.")
+        setSaving(false)
+        return
+      }
+
+      const { error: upsertError } = await supabase
+        .from('predictions')
+        .ups
