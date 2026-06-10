@@ -191,11 +191,13 @@ export default function GroupsPage() {
                   Partido #{match.id} · {match.match_date} a las {match.match_time}
                 </p>
                 
-                <div className="grid grid-cols-3 gap-2 items-center">
+                {/* Contenedor Grid con altura simétrica (items-stretch) */}
+                <div className="grid grid-cols-3 gap-2 items-stretch auto-rows-fr">
+                  
                   {/* Botón Equipo Local */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'home')}
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 transition-all border ${
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 transition-all border h-full ${
                       predictions[match.id] === 'home' 
                         ? 'bg-[#244ffe] border-[#3b62ff] text-white' 
                         : 'bg-[#1a1a1a] border-transparent text-gray-400 hover:bg-[#222]'
@@ -210,23 +212,23 @@ export default function GroupsPage() {
                     <span className="text-[11px] font-semibold truncate w-full text-center">{match.home_team}</span>
                   </button>
 
-                  {/* Botón Empate con Emoji */}
+                  {/* Botón Empate (Emoji arriba, texto abajo, tamaño idéntico) */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'draw')}
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl gap-1 transition-all border ${
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl gap-1 transition-all border h-full ${
                       predictions[match.id] === 'draw' 
                         ? 'bg-[#2a2a2a] border-[#444] text-white' 
                         : 'bg-[#1a1a1a] border-transparent text-gray-400 hover:bg-[#222]'
                     }`}
                   >
-                    <span className="text-base">🫱🏻‍🫲🏼</span>
-                    <span className="text-[11px] font-medium">Empate</span>
+                    <span className="text-base leading-none">🫱🏻‍🫲🏼</span>
+                    <span className="text-[11px] font-semibold">Empate</span>
                   </button>
 
                   {/* Botón Equipo Visitante */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'away')}
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 transition-all border ${
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 transition-all border h-full ${
                       predictions[match.id] === 'away' 
                         ? 'bg-[#244ffe] border-[#3b62ff] text-white' 
                         : 'bg-[#1a1a1a] border-transparent text-gray-400 hover:bg-[#222]'
@@ -240,6 +242,7 @@ export default function GroupsPage() {
                     />
                     <span className="text-[11px] font-semibold truncate w-full text-center">{match.away_team}</span>
                   </button>
+
                 </div>
               </div>
             ))}
