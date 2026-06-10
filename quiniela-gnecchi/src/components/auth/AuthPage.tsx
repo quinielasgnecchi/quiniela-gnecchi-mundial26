@@ -69,14 +69,27 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col justify-center items-center px-4">
-      <div className="w-full max-w-md p-6 rounded-3xl bg-[#141414] border border-[#1f1f1f] shadow-xl">
+    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col justify-center items-center px-4 relative overflow-hidden">
+      
+      {/* Efecto de luz ambiental mundialista de fondo (Azul y Verde) */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-gradient-to-tr from-[#009AFE]/10 to-[#01CB3B]/10 rounded-full blur-[80px] pointer-events-none" />
+
+      <div className="w-full max-w-md p-6 rounded-3xl bg-[#141414] border border-[#1f1f1f] shadow-2xl relative z-10 backdrop-blur-sm">
         
+        {/* Cabecera con los Colores Oficiales del Mundial 2026 */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-black tracking-tight text-white">
-            QUINIELA<span className="text-[#009AFE]">2026</span>
+          <h1 className="text-3xl font-black tracking-tight leading-tight flex flex-col items-center">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-400 font-extrabold text-2xl">
+              QUINIELA GNECCHI
+            </span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#01CB3B] via-[#E91E63] to-[#009AFE] font-black uppercase text-4xl mt-1 tracking-tighter filter drop-shadow-sm">
+              MUNDIAL
+            </span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FFD700] to-[#FFA500] font-black text-4xl font-mono tracking-widest mt-1">
+              2026
+            </span>
           </h1>
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-gray-500 mt-3 font-medium">
             {isFirstTime ? 'Crea tu perfil de competidor' : 'Introduce tus credenciales para acceder'}
           </p>
         </div>
@@ -100,7 +113,7 @@ export default function AuthPage() {
               <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Nombre Completo</label>
               <input 
                 type="text" 
-                placeholder="Ej. Juan Cantera"
+                placeholder="Ej. Bruno Díaz"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-[#1a1a1a] border border-[#262626] text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#009AFE] transition-colors"
@@ -142,7 +155,6 @@ export default function AuthPage() {
           </button>
         </form>
 
-        {/* Sección inferior corregida con estilos inline para forzar el color */}
         <div className="mt-6 pt-4 border-t border-[#1f1f1f] text-center">
           {isFirstTime ? (
             <button
