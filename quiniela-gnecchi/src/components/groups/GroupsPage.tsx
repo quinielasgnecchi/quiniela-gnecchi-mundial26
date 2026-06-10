@@ -183,22 +183,21 @@ export default function GroupsPage() {
 
       {/* Bottom action bar */}
       {!submitted && phaseOpen && (
-        <div className="fixed bottom-[72px] left-0 right-0 px-4 py-3" style={{background:'#0a0a0a',borderTop:'1px solid #1a1a1a'}}>
-          <div className="flex gap-3 max-w-md mx-auto">
-            {hasUnsaved && (
-              <button onClick={handleSave} disabled={saving}
-                className="flex-1 py-3.5 rounded-xl font-semibold text-white"
-                style={{background:'#1a1a1a',border:'1px solid #244ffe',color:'#244ffe'}}>
-                {saving ? 'Guardando...' : '💾 Guardar'}
-              </button>
-            )}
-            <button onClick={handleSubmit} disabled={!allDone || submitting}
-              className="flex-1 py-3.5 rounded-xl font-semibold text-white transition-opacity"
-              style={{background: allDone ? '#244ffe' : '#1a1a1a', opacity: allDone ? 1 : 0.5}}>
-              {submitting ? 'Enviando...' : allDone ? '✅ Enviar quiniela' : `Faltan ${total - done}`}
-            </button>
-          </div>
-        </div>
+    <div className="sticky bottom-0 px-4 py-3 bg-[#0a0a0a] border-t border-[#1a1a1a] mt-6">
+  {!allDone && (
+    <p className="text-xs text-center text-gray-500 mb-2">
+      Faltan {total - done} partidos por seleccionar
+    </p>
+  )}
+
+  <button
+    className="btn-primary"
+    onClick={handleSubmit}
+    disabled={!allDone || saving}
+  >
+    {saving ? 'Enviando...' : allDone ? '✅ Enviar quiniela' : `Completa los ${total - done} restantes`}
+  </button>
+</div>
       )}
 
       {submitted && (
