@@ -142,7 +142,7 @@ export default function AuthPage() {
           </button>
         </form>
 
-        {/* Switch inferior con el resalte en verde HEX #01CB3B */}
+        {/* Sección inferior corregida con estilos inline para forzar el color */}
         <div className="mt-6 pt-4 border-t border-[#1f1f1f] text-center">
           {isFirstTime ? (
             <button
@@ -153,7 +153,13 @@ export default function AuthPage() {
               }}
               className="text-xs text-gray-400 hover:text-white transition-colors"
             >
-              ¿Ya tienes cuenta? <span className="underline decoration-dotted underline-offset-4 font-bold text-[#009AFE]">Inicia sesión aquí</span>
+              ¿Ya tienes cuenta?{' '}
+              <span 
+                className="underline decoration-dotted underline-offset-4 font-bold"
+                style={{ color: '#009AFE' }}
+              >
+                Inicia sesión aquí
+              </span>
             </button>
           ) : (
             <button
@@ -164,7 +170,13 @@ export default function AuthPage() {
               }}
               className="text-xs text-gray-400 hover:text-white transition-colors"
             >
-              ¿Es tu primera vez participando? <span className="underline decoration-dotted underline-offset-4 font-bold text-[#01CB3B]">Regístrate aquí</span>
+              ¿Es tu primera vez participando?{' '}
+              <span 
+                className="underline decoration-dotted underline-offset-4 font-bold"
+                style={{ color: '#01CB3B' }}
+              >
+                Regístrate aquí
+              </span>
             </button>
           )}
         </div>
