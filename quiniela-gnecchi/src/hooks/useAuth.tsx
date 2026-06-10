@@ -57,9 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function fetchProfile(userId: string) {
     try {
-      const { data: authUser } = await supabase.auth.getUser()
-
-      const email = authUser.user?.email ?? ''
+    const { data: sessionData } = await supabase.auth.getSession()
+const email = sessionData.session?.user?.email ?? ''
       const defaultName = email.split('@')[0]
 
       const { data: profile } = await supabase
