@@ -17,7 +17,7 @@ const FLAG_MAP: Record<string, string> = {
   'Brasil': 'br',
   'Marruecos': 'ma',
   'Haití': 'ht',
-  'Escocia': 'gb-sct', // Código nativo FlagCDN para Escocia
+  'Escocia': 'gb-sct',
   'Estados Unidos': 'us',
   'Paraguay': 'py',
   'Australia': 'au',
@@ -48,7 +48,7 @@ const FLAG_MAP: Record<string, string> = {
   'Jordania': 'jo',
   'Portugal': 'pt',
   'RD Congo': 'cd',
-  'Inglaterra': 'gb-eng', // Código nativo FlagCDN para Inglaterra
+  'Inglaterra': 'gb-eng',
   'Croacia': 'hr',
   'Ghana': 'gh',
   'Panamá': 'pa',
@@ -124,14 +124,12 @@ export default function GroupsPage() {
         return
       }
 
-      // Guardar predicciones en bloque
       const { error: upsertError } = await supabase
         .from('predictions')
         .upsert(payload, { onConflict: 'user_id,match_id' })
 
       if (upsertError) throw upsertError
 
-      // Registrar estado del envío global
       await supabase.from('submissions').upsert({
         user_id: user.id,
         phase: 'groups',
@@ -157,7 +155,6 @@ export default function GroupsPage() {
     )
   }
 
-  // Lista ordenada de los grupos de la A a la L
   const sortedGroupNames = Object.keys(matchesByGroup).sort()
 
   return (
@@ -213,16 +210,17 @@ export default function GroupsPage() {
                     <span className="text-[11px] font-semibold truncate w-full text-center">{match.home_team}</span>
                   </button>
 
-                  {/* Botón Empate */}
+                  {/* Botón Empate con Emoji */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'draw')}
-                    className={`p-4 rounded-xl font-bold text-xs transition-all border ${
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl gap-1 transition-all border ${
                       predictions[match.id] === 'draw' 
                         ? 'bg-[#2a2a2a] border-[#444] text-white' 
                         : 'bg-[#1a1a1a] border-transparent text-gray-400 hover:bg-[#222]'
                     }`}
                   >
-                    Empate
+                    <span className="text-base">🫱🏻‍🫲🏼</span>
+                    <span className="text-[11px] font-medium">Empate</span>
                   </button>
 
                   {/* Botón Equipo Visitante */}
