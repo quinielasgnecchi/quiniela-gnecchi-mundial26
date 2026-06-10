@@ -34,32 +34,11 @@ const handleSave = async () => {
         submitted_at: new Date().toISOString()
       }, { onConflict: 'user_id,phase' })
 
-      // 3. LLAMADO AL ENVÍO DE CORREO AUTOMÁTICO
-      // Preparamos un formato de texto limpio con los partidos y los pronósticos del usuario
-      const formatPrediction = (pred: string) => {
-        if (pred === 'home') return 'Gana Local'
-        if (pred === 'away') return 'Gana Visitante'
-        return 'Empate'
-      }
-
-      const resumenPronosticos = dbMatches.map(m => 
-        `Partido #${m.id} (${m.group_name}): ${m.home_team} vs ${m.away_team} -> Tu Pronóstico: ${formatPrediction(predictions[m.id])}`
-      ).join('\n')
-
-      // Invocamos la Edge Function de Supabase pasándole los datos
-      await supabase.functions.invoke('send-confirmation-email', {
-        body: {
-          to_email: user.email,
-          user_name: user.user_metadata?.full_name || 'Competidor',
-          summary: resumenPronosticos
-        }
-      })
-
       // Bloqueo local en el navegador
       localStorage.setItem('quiniela_groups_submitted', 'true')
       setHasSubmitted(true)
       
-      alert("🚀 ¡Tus pronósticos se han enviado con éxito y se ha mandado una copia a tu correo!")
+      alert("🚀 ¡Tus pronósticos se han enviado con éxito y tu quiniela ha sido congelada!")
       navigate('/dashboard')
     } catch (error: any) {
       console.error(error)
