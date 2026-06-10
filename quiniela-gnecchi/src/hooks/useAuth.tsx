@@ -16,38 +16,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) fetchProfile(session.user.id)
-      else setLoading(false)
+      if (session?.user) {
+        setUser({ id: session.user.id, email: session.user.email ?? '', full_name: session.user.email ?? '', role: 'user', created_at: '' })
+        setLoading(false)
+      } else {
+        setLoading(false)
+      }
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) fetchProfile(session.user.id)
-      else { setUser(null); setLoading(false) }
+      if (session?.user) {
+        setUser({ id: session.user.id, email: session.user.email ?? '', full_name: session.user.email ?? '', role: 'user', created_at: '' })
+      } else {
+        setUser(null)
+      }
+      setLoading(false)
     })
 
     return () => subscription.unsubscribe()
   }, [])
-
-  async function fetchProfile(userId: string) {
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single()
-    if (error || !data) {
-      // Profile doesn't exist yet, create a basic one
-      const { data: authUser } = await supabase.auth.getUser()
-      if (authUser.user) {
-        await supabase.from('profiles').insert({
-          id: authUser.user.id,
-          email: authUser.user.email,
-          full_name: authUser.user.email?.split('@')[0] ?? 'Usuario',
-          role: 'user',
-        })
-        const { data: newProfile } = await supabase.from('profiles').select('*').eq('id', userId).single()
-        setUser(newProfile)
-      }
-    } else {
-      setUser(data)
-    }
-    setLoading(false)
-  }
 
   async function signOut() {
     await supabase.auth.signOut()
