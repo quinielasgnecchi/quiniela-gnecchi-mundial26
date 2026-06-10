@@ -2,98 +2,90 @@ import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { GROUP_MATCHES } from '../../data/matches'
 
-// Mapeo exacto basado en tus strings de GROUP_MATCHES
+// Definimos la interfaz para evitar errores de TypeScript con los datos de la BD
+interface Match {
+  id: number
+  group_name: string
+  home_team: string
+  away_team: string
+  match_date: string
+  match_time: string
+}
+
 const FLAG_MAP: Record<string, string> = {
-  'México': 'mx',
-  'Sudáfrica': 'za',
-  'Corea del Sur': 'kr',
-  'Chequia': 'cz',
-  'Canadá': 'ca',
-  'Bosnia y Herzegovina': 'ba',
-  'Catar': 'qa',
-  'Suiza': 'ch',
-  'Brasil': 'br',
-  'Marruecos': 'ma',
-  'Haití': 'ht',
-  'Escocia': 'gb-sct',
-  'Estados Unidos': 'us',
-  'Paraguay': 'py',
-  'Australia': 'au',
-  'Turquía': 'tr',
-  'Alemania': 'de',
-  'Curazao': 'cw',
-  'Costa de Marfil': 'ci',
-  'Ecuador': 'ec',
-  'Países Bajos': 'nl',
-  'Japón': 'jp',
-  'Suecia': 'se',
-  'Túnez': 'tn',
-  'Bélgica': 'be',
-  'Egipto': 'eg',
-  'Irán': 'ir',
-  'Nueva Zelanda': 'nz',
-  'España': 'es',
-  'Cabo Verde': 'cv',
-  'Arabia Saudita': 'sa',
-  'Uruguay': 'uy',
-  'Francia': 'fr',
-  'Senegal': 'sn',
-  'Irak': 'iq',
-  'Noruega': 'no',
-  'Argentina': 'ar',
-  'Argelia': 'dz',
-  'Austria': 'at',
-  'Jordania': 'jo',
-  'Portugal': 'pt',
-  'RD Congo': 'cd',
-  'Inglaterra': 'gb-eng',
-  'Croacia': 'hr',
-  'Ghana': 'gh',
-  'Panamá': 'pa',
-  'Uzbekistán': 'uz',
-  'Colombia': 'co'
+  'México': 'mx', 'Sudáfrica': 'za', 'Corea del Sur': 'kr', 'Chequia': 'cz',
+  'Canadá': 'ca', 'Bosnia y Herzegovina': 'ba', 'Catar': 'qa', 'Suiza': 'ch',
+  'Brasil': 'br', 'Marruecos': 'ma', 'Haití': 'ht', 'Escocia': 'gb-sct',
+  'Estados Unidos': 'us', 'Paraguay': 'py', 'Australia': 'au', 'Turquía': 'tr',
+  'Alemania': 'de', 'Curazao': 'cw', 'Costa de Marfil': 'ci', 'Ecuador': 'ec',
+  'Países Bajos': 'nl', 'Japón': 'jp', 'Suecia': 'se', 'Túnez': 'tn',
+  'Bélgica': 'be', 'Egipto': 'eg', 'Irán': 'ir', 'Nueva Zelanda': 'nz',
+  'España': 'es', 'Cabo Verde': 'cv', 'Arabia Saudita': 'sa', 'Uruguay': 'uy',
+  'Francia': 'fr', 'Senegal': 'sn', 'Irak': 'iq', 'Noruega': 'no',
+  'Argentina': 'ar', 'Argelia': 'dz', 'Austria': 'at', 'Jordania': 'jo',
+  'Portugal': 'pt', 'RD Congo': 'cd', 'Inglaterra': 'gb-eng', 'Croacia': 'hr',
+  'Ghana': 'gh', 'Panamá': 'pa', 'Uzbekistán': 'uz', 'Colombia': 'co'
 }
 
 export default function GroupsPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  
+  // ESTADOS DINÁMICOS
+  const [dbMatches, setDbMatches] = useState<Match[]>([]) // Partidos reales de la BD
   const [predictions, setPredictions] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [hasSubmitted, setHasSubmitted] = useState(false)
-  
-  // Estado para el grupo seleccionado en las pestañas arriba
   const [activeGroup, setActiveGroup] = useState<string>('A')
 
-  // Total de partidos en esta fase
-  const totalMatches = GROUP_MATCHES.length
-  // Cuántos partidos ya tienen selección
+  // Cálculos basados en los partidos de la Base de Datos
+  const totalMatches = dbMatches.length
   const completedMatches = Object.keys(predictions).length
-  // Porcentaje completado para la barra de progreso
   const progressPercentage = totalMatches > 0 ? Math.round((completedMatches / totalMatches) * 100) : 0
 
-  // Agrupación de partidos por su respectiva letra de grupo
+  // Agrupamos los partidos que bajaron de Supabase
   const matchesByGroup = useMemo(() => {
-    const groups: Record<string, typeof GROUP_MATCHES> = {}
-    GROUP_MATCHES.forEach(match => {
+    const groups: Record<string, Match[]> = {}
+    dbMatches.forEach(match => {
       if (!groups[match.group_name]) {
         groups[match.group_name] = []
       }
       groups[match.group_name].push(match)
     })
     return groups
-  }, [])
+  }, [dbMatches])
 
-  // Lista ordenada de los nombres de los grupos (A, B, C...)
   const sortedGroupNames = useMemo(() => Object.keys(matchesByGroup).sort(), [matchesByGroup])
 
   useEffect(() => {
     if (!user) return
     
-    async function checkSubmissionAndFetchPredictions() {
+    async function loadAllData() {
       try {
+        // 1. Descargar los partidos reales del backend para garantizar IDs perfectos
+        const { data: fetchedMatches, error: matchesError } = await supabase
+          .from('matches')
+          .select('*')
+          // Si manejas fases en la tabla de partidos, descomenta la siguiente línea:
+          // .eq('phase', 'groups') 
+          
+        if (matchesError) throw matchesError
+        
+        if (fetchedMatches) {
+          // Ordenar numéricamente por ID para mantener la consistencia cronológica
+          const sorted = (fetchedMatches as Match[]).sort((a, b) => a.id - b.id)
+          setDbMatches(sorted)
+          
+          // Establecer el primer grupo disponible como activo por defecto
+          if (sorted.length > 0) {
+            const firstGroup = sorted[0].group_name
+            setActiveGroup(firstGroup)
+          }
+        }
+
+        // 2. Verificar si ya bloqueó su quiniela
         const { data: submission } = await supabase
           .from('submissions')
           .select('id')
@@ -105,28 +97,29 @@ export default function GroupsPage() {
           setHasSubmitted(true)
         }
 
-        const { data, error } = await supabase
+        // 3. Traer el historial existente
+        const { data: userPreds, error: predsError } = await supabase
           .from('predictions')
           .select('match_id, prediction')
           .eq('user_id', user.id)
 
-        if (error) throw error
+        if (predsError) throw predsError
 
-        if (data) {
+        if (userPreds) {
           const initialPreds: Record<number, string> = {}
-          data.forEach(item => {
+          userPreds.forEach(item => {
             initialPreds[item.match_id] = item.prediction
           })
           setPredictions(initialPreds)
         }
       } catch (err) {
-        console.error("Error al cargar datos iniciales:", err)
+        console.error("Error crítico de sincronización:", err)
       } finally {
         setLoading(false)
       }
     }
     
-    checkSubmissionAndFetchPredictions()
+    loadAllData()
   }, [user])
 
   const handleSelectPrediction = (matchId: number, value: string) => {
@@ -148,11 +141,10 @@ export default function GroupsPage() {
     setSaving(true)
 
     try {
-      // CORRECCIÓN DIRECTA: Se mapea usando el array nativo de partidos locales
-      // para mantener intacta la correspondencia numérica de los IDs.
-      const payload = GROUP_MATCHES.map((match) => ({
+      // SOLUCIÓN TOTAL: Construimos el payload usando estrictamente los registros e IDs directos de la BD
+      const payload = dbMatches.map((match) => ({
         user_id: user.id,
-        match_id: match.id,
+        match_id: match.id, // ID 100% verificado por el backend
         prediction: predictions[match.id] || '',
         phase: 'groups'
       }))
@@ -184,7 +176,7 @@ export default function GroupsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-gray-400 font-medium">
-        Cargando partidos y configuración...
+        Sincronizando partidos con la Base de Datos...
       </div>
     )
   }
@@ -280,7 +272,6 @@ export default function GroupsPage() {
                   Partido #{match.id} · {match.match_date} a las {match.match_time}
                 </p>
                 
-                {/* Contenedor Grid con altura simétrica */}
                 <div className="grid grid-cols-3 gap-2 items-stretch auto-rows-fr">
                   
                   {/* Botón Equipo Local */}
