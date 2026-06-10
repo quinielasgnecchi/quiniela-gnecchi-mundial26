@@ -126,4 +126,129 @@ export default function GroupsPage() {
 
       const { error: upsertError } = await supabase
         .from('predictions')
-        .ups
+        .upsert(payload, { onConflict: 'user_id,match_id' })
+
+      if (upsertError) throw upsertError
+
+      await supabase.from('submissions').upsert({
+        user_id: user.id,
+        phase: 'groups',
+        predictions_count: payload.length,
+        submitted_at: new Date().toISOString()
+      }, { onConflict: 'user_id,phase' })
+
+      alert("¡Tus pronósticos de Fase de Grupos se guardaron con éxito!")
+      navigate('/dashboard')
+    } catch (error: any) {
+      console.error(error)
+      alert(`Error al guardar: ${error.message || 'Intenta de nuevo'}`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-gray-400 font-medium">
+        Cargando partidos y configuración...
+      </div>
+    )
+  }
+
+  const sortedGroupNames = Object.keys(matchesByGroup).sort()
+
+  return (
+    <div className="px-4 pt-6 pb-[100px] min-h-screen bg-[#0a0a0a] text-white">
+      {/* Cabecera principal */}
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Fase de Grupos</h1>
+          <p className="text-xs text-gray-500 mt-1">Organizado por Grupos Oficiales (A - L)</p>
+        </div>
+        <button 
+          onClick={handleSave} 
+          disabled={saving}
+          className="bg-[#244ffe] hover:bg-[#1e44d6] disabled:opacity-50 px-5 py-2.5 rounded-xl font-bold text-xs transition-colors shadow-lg"
+        >
+          {saving ? 'Guardando...' : '💾 Guardar Todo'}
+        </button>
+      </div>
+
+      {/* Renderizado de Grupos */}
+      {sortedGroupNames.map((groupName) => (
+        <div key={groupName} className="mb-10">
+          <div className="flex items-center gap-2 mb-4 border-b border-[#1f1f1f] pb-2">
+            <div className="w-6 h-6 bg-[#244ffe] rounded-md flex items-center justify-center font-bold text-xs">
+              {groupName}
+            </div>
+            <h2 className="text-base font-bold text-gray-200">Grupo {groupName}</h2>
+          </div>
+          
+          <div className="flex flex-col gap-4">
+            {matchesByGroup[groupName].map((match) => (
+              <div key={match.id} className="p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f] shadow-sm">
+                <p className="text-[10px] text-gray-500 text-center mb-3 font-mono">
+                  Partido #{match.id} · {match.match_date} a las {match.match_time}
+                </p>
+                
+                {/* Contenedor Grid con altura simétrica */}
+                <div className="grid grid-cols-3 gap-2 items-stretch auto-rows-fr">
+                  
+                  {/* Botón Equipo Local (Ganador -> Verde HEX #01CB3B) */}
+                  <button 
+                    onClick={() => handleSelectPrediction(match.id, 'home')}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 transition-all border h-full ${
+                      predictions[match.id] === 'home' 
+                        ? 'bg-[#01CB3B] border-[#02e643] text-white font-bold' 
+                        : 'bg-[#1a1a1a] border-transparent text-gray-400 hover:bg-[#222]'
+                    }`}
+                  >
+                    <img 
+                      src={`https://flagcdn.com/w80/${FLAG_MAP[match.home_team] || 'un'}.png`} 
+                      alt={match.home_team}
+                      className="w-8 h-5 object-cover rounded shadow-sm"
+                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://flagcdn.com/w80/un.png' }}
+                    />
+                    <span className="text-[11px] font-semibold truncate w-full text-center">{match.home_team}</span>
+                  </button>
+
+                  {/* Botón Empate (Empate -> Azul bg-[#244ffe]) */}
+                  <button 
+                    onClick={() => handleSelectPrediction(match.id, 'draw')}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl gap-1 transition-all border h-full ${
+                      predictions[match.id] === 'draw' 
+                        ? 'bg-[#244ffe] border-[#3b62ff] text-white font-bold' 
+                        : 'bg-[#1a1a1a] border-transparent text-gray-400 hover:bg-[#222]'
+                    }`}
+                  >
+                    <span className="text-base leading-none">🫱🏻‍🫲🏼</span>
+                    <span className="text-[11px] font-semibold">Empate</span>
+                  </button>
+
+                  {/* Botón Equipo Visitante (Ganador -> Verde HEX #01CB3B) */}
+                  <button 
+                    onClick={() => handleSelectPrediction(match.id, 'away')}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 transition-all border h-full ${
+                      predictions[match.id] === 'away' 
+                        ? 'bg-[#01CB3B] border-[#02e643] text-white font-bold' 
+                        : 'bg-[#1a1a1a] border-transparent text-gray-400 hover:bg-[#222]'
+                    }`}
+                  >
+                    <img 
+                      src={`https://flagcdn.com/w80/${FLAG_MAP[match.away_team] || 'un'}.png`} 
+                      alt={match.away_team}
+                      className="w-8 h-5 object-cover rounded shadow-sm"
+                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://flagcdn.com/w80/un.png' }}
+                    />
+                    <span className="text-[11px] font-semibold truncate w-full text-center">{match.away_team}</span>
+                  </button>
+
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
