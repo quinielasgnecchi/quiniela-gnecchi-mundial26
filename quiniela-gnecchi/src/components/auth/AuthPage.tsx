@@ -100,7 +100,7 @@ export default function AuthPage() {
               <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Nombre Completo</label>
               <input 
                 type="text" 
-                placeholder="Ej. Bruno Díaz"
+                placeholder="Ej. Juan Cantera"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-[#1a1a1a] border border-[#262626] text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#009AFE] transition-colors"
