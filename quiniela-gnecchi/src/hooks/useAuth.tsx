@@ -33,7 +33,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      await fetchProfile(session.user.id)
+      setTimeout(() => {
+  fetchProfile(session.user.id)
+}, 0)
     }
 
     init()
@@ -56,33 +58,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   async function fetchProfile(userId: string) {
-    try {
+  try {
     const { data: sessionData } = await supabase.auth.getSession()
-const email = sessionData.session?.user?.email ?? ''
-      const defaultName = email.split('@')[0]
+    const email = sessionData.session?.user?.email ?? ''
+    const defaultName = email.split('@')[0]
 
-      const { data: profile } = await supabase
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (!profile) {
+      const { data: inserted } = await supabase
         .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle()
+        .insert({
+          id: userId,
+          email,
+          full_name: defaultName,
+          role: 'user',
+        })
+        .select()
+        .single()
 
-      if (!profile) {
-        const { data: inserted } = await supabase
-          .from('profiles')
-          .insert({
-            id: userId,
-            email,
-            full_name: defaultName,
-            role: 'user',
-          })
-          .select()
-          .single()
+      setUser(inserted)
+      return
+    }
 
-        setUser(inserted)
-        setLoading(false)
-        return
-      }
+    setUser({
+      ...profile,
+      full_name: profile.full_name || defaultName,
+    })
+
+  } catch (err) {
+    console.error('fetchProfile error:', err)
+    setUser(null)
+  } finally {
+    setLoading(false)
+  }
+}
 
       const fixedProfile = {
         ...profile,
