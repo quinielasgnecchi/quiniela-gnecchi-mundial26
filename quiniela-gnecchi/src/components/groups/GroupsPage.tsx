@@ -11,6 +11,7 @@ interface Match {
   away_flag: string
   date: string
   group_name: string
+  phase: string
 }
 
 export default function GroupsPage() {
@@ -30,7 +31,23 @@ export default function GroupsPage() {
     async function loadInitialData() {
       if (!user) return
       try {
-        // 1. Verificar si el usuario ya congeló su quiniela de grupos
+        setLoading(true)
+
+        // 1. Obtener TODOS los partidos de la base de datos primero para evitar pantallas negras
+        const { data: matchesData, error: matchesError } = await supabase
+          .from('matches')
+          .select('*')
+          .order('date', { ascending: true })
+
+        if (matchesError) throw matchesError
+
+        // Filtrar por fase de grupos (sea minúscula o mayúscula)
+        const groupsMatches = (matchesData || []).filter(
+          m => m.phase?.toLowerCase() === 'groups' || m.phase?.toLowerCase() === 'grupo' || m.phase?.toLowerCase() === 'fase de grupos'
+        )
+        setDbMatches(groupsMatches)
+
+        // 2. Verificar de forma segura el estado de congelación (submissions)
         const { data: submission } = await supabase
           .from('submissions')
           .select('*')
@@ -42,32 +59,22 @@ export default function GroupsPage() {
           setHasSubmitted(true)
         }
 
-        // 2. Traer los partidos oficiales de la base de datos
-        const { data: matchesData, error: matchesError } = await supabase
-          .from('matches')
-          .select('*')
-          .eq('phase', 'groups')
-          .order('date', { ascending: true })
-
-        if (matchesError) throw matchesError
-        setDbMatches(matchesData || [])
-
-        // 3. Traer predicciones previas guardadas
-        const { data: predsData } = await supabase
+        // 3. Cargar las predicciones que guardó el usuario
+        const { data: predsData, error: predsError } = await supabase
           .from('predictions')
           .select('match_id, prediction')
           .eq('user_id', user.id)
-          .eq('phase', 'groups')
 
-        if (predsData) {
+        if (!predsError && predsData) {
           const predsMap: Record<string, string> = {}
           predsData.forEach((p) => {
             predsMap[p.match_id] = p.prediction
           })
           setPredictions(predsMap)
         }
+
       } catch (err) {
-        console.error('Error al cargar datos:', err)
+        console.error('Error crítico al cargar datos de la quiniela:', err)
       } finally {
         setLoading(false)
       }
@@ -137,13 +144,17 @@ export default function GroupsPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] text-white">
-        <p className="text-sm animate-pulse text-gray-400">Cargando partidos oficiales...</p>
+        <div className="text-center flex flex-col gap-2">
+          <p className="text-sm animate-pulse text-gray-400">Cargando tus pronósticos guardados...</p>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white pb-24 px-4 pt-6 max-w-md mx-auto">
+      
+      {/* Cabecera superior estática */}
       <div className="mb-6 text-center">
         <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#01CB3B] to-[#009AFE]">
           FASE DE GRUPOS
@@ -155,37 +166,51 @@ export default function GroupsPage() {
         </p>
       </div>
 
+      {/* Alerta si el filtro de partidos de grupos no encuentra filas en Supabase */}
+      {dbMatches.length === 0 && (
+        <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-center text-xs text-yellow-400">
+          ⚠️ No se encontraron partidos asignados a la fase de grupos en la base de datos. Verifica la tabla 'matches'.
+        </div>
+      )}
+
+      {/* Lista de Partidos Oficiales */}
       <div className="flex flex-col gap-4">
         {dbMatches.map((match) => {
           const currentPred = predictions[match.id] || '';
           
           return (
-            <div key={match.id} className="p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-800 text-gray-400 uppercase tracking-wider">
-                Grupo {match.group_name}
-              </span>
+            <div key={match.id} className="p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f] shadow-sm">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-800 text-gray-400 uppercase tracking-wider">
+                  Grupo {match.group_name || 'General'}
+                </span>
+              </div>
               
-              <div className="grid grid-cols-3 items-center mt-3 text-center">
+              <div className="grid grid-cols-3 items-center text-center mt-1">
+                {/* Equipo Local */}
                 <div className="flex flex-col items-center gap-1">
-                  <span className="text-2xl">{match.home_flag}</span>
+                  <span className="text-2xl">{match.home_flag || '🏳️'}</span>
                   <span className="text-xs font-semibold truncate w-24 text-gray-200">{match.home_team}</span>
                 </div>
 
+                {/* Zona Central Interactiva o de Bloqueo */}
                 <div className="flex flex-col gap-2">
                   {hasSubmitted ? (
-                    <div className="text-xs font-bold text-[#01CB3B] bg-[#01CB3B]/10 border border-[#01CB3B]/20 py-2 rounded-xl">
-                      {currentPred === 'L' && `Gana ${match.home_team}`}
-                      {currentPred === 'V' && `Gana ${match.away_team}`}
-                      {currentPred === 'E' && 'Empate'}
-                      {!currentPred && 'Sin seleccionar'}
+                    // VISTA FIJA BLOQUEADA: Muestra la respuesta exacta recuperada de la Base de Datos
+                    <div className="text-[11px] font-black uppercase text-[#01CB3B] bg-[#01CB3B]/10 border border-[#01CB3B]/30 py-2.5 px-1 rounded-xl shadow-inner tracking-tight">
+                      {currentPred === 'L' && `⚽ Gana Local`}
+                      {currentPred === 'V' && `⚽ Gana Visita`}
+                      {currentPred === 'E' && '🤝 Empate'}
+                      {!currentPred && '❌ Sin Predicción'}
                     </div>
                   ) : (
+                    // VISTA EDITABLE: Solo si NO ha enviado la quiniela
                     <select
                       value={currentPred}
                       onChange={(e) => handlePredictionChange(match.id, e.target.value)}
-                      className="w-full bg-[#1a1a1a] border border-[#262626] rounded-xl py-2 text-center text-xs font-bold text-white focus:outline-none focus:border-[#009AFE]"
+                      className="w-full bg-[#1a1a1a] border border-[#262626] rounded-xl py-2 text-center text-xs font-bold text-white focus:outline-none focus:border-[#009AFE] transition-colors"
                     >
-                      <option value="">Elegir resultado</option>
+                      <option value="">Elegir</option>
                       <option value="L">Gana {match.home_team}</option>
                       <option value="E">Empate</option>
                       <option value="V">Gana {match.away_team}</option>
@@ -193,8 +218,9 @@ export default function GroupsPage() {
                   )}
                 </div>
 
+                {/* Equipo Visitante */}
                 <div className="flex flex-col items-center gap-1">
-                  <span className="text-2xl">{match.away_flag}</span>
+                  <span className="text-2xl">{match.away_flag || '🏳️'}</span>
                   <span className="text-xs font-semibold truncate w-24 text-gray-200">{match.away_team}</span>
                 </div>
               </div>
@@ -203,14 +229,15 @@ export default function GroupsPage() {
         })}
       </div>
 
-      {!hasSubmitted && (
+      {/* Botón de Enviar Definitivo (Desaparece por completo al estar congelado) */}
+      {!hasSubmitted && dbMatches.length > 0 && (
         <div className="mt-8">
           <button
             onClick={handleSave}
             disabled={saving}
             className="w-full py-4 rounded-xl bg-gradient-to-r from-[#01CB3B] to-[#009AFE] text-white font-bold text-sm tracking-wide shadow-lg disabled:opacity-50 transition-all hover:scale-[1.01]"
           >
-            {saving ? 'Guardando...' : '📤 Enviar Respuestas Definitivas'}
+            {saving ? 'Guardando quiniela...' : '📤 Enviar Respuestas Definitivas'}
           </button>
         </div>
       )}
