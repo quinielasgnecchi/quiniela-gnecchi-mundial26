@@ -62,11 +62,14 @@ export default function GroupsPage() {
   const [predictions, setPredictions] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [hasSubmitted, setHasSubmitted] = useState(false) // Nuevo estado para bloquear la edición
+  const [hasSubmitted, setHasSubmitted] = useState(false)
+  
+  // Estado para el grupo seleccionado en las pestañas arriba
+  const [activeGroup, setActiveGroup] = useState<string>('A')
 
   // Total de partidos en esta fase
   const totalMatches = GROUP_MATCHES.length
-  // Cuántos partidos ya tienen selección (local, empate o visitante)
+  // Cuántos partidos ya tienen selección
   const completedMatches = Object.keys(predictions).length
   // Porcentaje completado para la barra de progreso
   const progressPercentage = totalMatches > 0 ? Math.round((completedMatches / totalMatches) * 100) : 0
@@ -83,13 +86,15 @@ export default function GroupsPage() {
     return groups
   }, [])
 
+  // Lista ordenada de los nombres de los grupos (A, B, C...)
+  const sortedGroupNames = useMemo(() => Object.keys(matchesByGroup).sort(), [matchesByGroup])
+
   useEffect(() => {
     if (!user) return
     
     async function checkSubmissionAndFetchPredictions() {
       try {
-        // 1. Verificar si este usuario ya envió la fase de grupos definitivamente
-        const { data: submission, error: subError } = await supabase
+        const { data: submission } = await supabase
           .from('submissions')
           .select('id')
           .eq('user_id', user.id)
@@ -100,7 +105,6 @@ export default function GroupsPage() {
           setHasSubmitted(true)
         }
 
-        // 2. Traer el historial de lo que ya seleccionó (si aplica)
         const { data, error } = await supabase
           .from('predictions')
           .select('match_id, prediction')
@@ -126,7 +130,6 @@ export default function GroupsPage() {
   }, [user])
 
   const handleSelectPrediction = (matchId: number, value: string) => {
-    // Si ya envió su quiniela, ignoramos cualquier clic para que no modifique nada
     if (hasSubmitted) return
     setPredictions(prev => ({ ...prev, [matchId]: value }))
   }
@@ -134,7 +137,6 @@ export default function GroupsPage() {
   const handleSave = async () => {
     if (!user || hasSubmitted) return
 
-    // Obligar a que la quiniela esté completa al 100% antes de mandarla definitivamente
     if (completedMatches < totalMatches) {
       alert(`⚠️ Debes completar todos los partidos antes de enviar. Te faltan ${totalMatches - completedMatches} pronósticos.`)
       return
@@ -153,14 +155,12 @@ export default function GroupsPage() {
         phase: 'groups'
       }))
 
-      // Guardar predicciones
       const { error: upsertError } = await supabase
         .from('predictions')
         .upsert(payload, { onConflict: 'user_id,match_id' })
 
       if (upsertError) throw upsertError
 
-      // Registrar el envío final definitivo para bloquearlo para siempre
       await supabase.from('submissions').upsert({
         user_id: user.id,
         phase: 'groups',
@@ -187,25 +187,22 @@ export default function GroupsPage() {
     )
   }
 
-  const sortedGroupNames = Object.keys(matchesByGroup).sort()
-
   return (
     <div className="px-4 pt-6 pb-[100px] min-h-screen bg-[#0a0a0a] text-white">
       {/* Cabecera principal */}
       <div className="flex justify-between items-center mb-5">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Fase de Grupos</h1>
-          <p className="text-xs text-gray-500 mt-1">Organizado por Grupos Oficiales (A - L)</p>
+          <p className="text-xs text-gray-500 mt-1">Selecciona el ganador de cada partido</p>
         </div>
         
-        {/* Cambiado el texto y deshabilitado si ya fue enviado */}
         <button 
           onClick={handleSave} 
           disabled={saving || hasSubmitted}
           className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-colors shadow-lg ${
             hasSubmitted 
               ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700' 
-              : 'bg-[#244ffe] hover:bg-[#1e44d6] text-white'
+              : 'bg-[#009AFE] hover:bg-[#0086dd] text-white'
           }`}
         >
           {saving ? 'Enviando...' : hasSubmitted ? '🔒 Respuestas Bloqueadas' : '🚀 Enviar Respuestas'}
@@ -220,7 +217,7 @@ export default function GroupsPage() {
       )}
 
       {/* Barra de Progreso Dinámica */}
-      <div className="mb-8 p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
+      <div className="mb-6 p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
         <div className="flex justify-between items-center mb-2">
           <span className="text-xs font-semibold text-gray-400">Progreso de tu quiniela</span>
           <span className="text-xs font-bold text-gray-200 font-mono">
@@ -229,7 +226,7 @@ export default function GroupsPage() {
         </div>
         <div className="w-full bg-[#1a1a1a] h-2.5 rounded-full overflow-hidden border border-[#222]">
           <div 
-            className="bg-[#01CB3B] h-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(1,203,59,0.3)]"
+            className="bg-[#009AFE] h-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(0,154,254,0.3)]"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
@@ -238,39 +235,56 @@ export default function GroupsPage() {
             Te faltan {totalMatches - completedMatches} partidos por rellenar.
           </p>
         ) : (
-          <p className="text-[10px] text-[#01CB3B] font-bold mt-2 text-right flex items-center justify-end gap-1">
+          <p className="text-[10px] text-[#009AFE] font-bold mt-2 text-right flex items-center justify-end gap-1">
             🎉 ¡Listo! Has completado todos los partidos.
           </p>
         )}
       </div>
 
-      {/* Renderizado de Grupos */}
-      {sortedGroupNames.map((groupName) => (
-        <div key={groupName} className="mb-10">
-          <div className="flex items-center gap-2 mb-4 border-b border-[#1f1f1f] pb-2">
-            <div className="w-6 h-6 bg-[#244ffe] rounded-md flex items-center justify-center font-bold text-xs">
-              {groupName}
+      {/* SECCIÓN NUEVA: Selector de Grupos Horizontal (Tabs) */}
+      <div className="mb-6 overflow-x-auto scrollbar-none flex gap-2 pb-2 border-b border-[#1f1f1f]">
+        {sortedGroupNames.map((groupName) => (
+          <button
+            key={groupName}
+            onClick={() => setActiveGroup(groupName)}
+            className={`flex-none px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+              activeGroup === groupName
+                ? 'bg-[#009AFE] border-[#33adff] text-white'
+                : 'bg-[#141414] border-[#1f1f1f] text-gray-400 hover:bg-[#1a1a1a]'
+            }`}
+          >
+            Grupo {groupName}
+          </button>
+        ))}
+      </div>
+
+      {/* Renderizado único del Grupo Activo */}
+      {activeGroup && matchesByGroup[activeGroup] && (
+        <div className="mb-10">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-6 h-6 bg-[#009AFE] rounded-md flex items-center justify-center font-bold text-xs text-white">
+              {activeGroup}
             </div>
-            <h2 className="text-base font-bold text-gray-200">Grupo {groupName}</h2>
+            <h2 className="text-base font-bold text-gray-200">Partidos del Grupo {activeGroup}</h2>
           </div>
           
           <div className="flex flex-col gap-4">
-            {matchesByGroup[groupName].map((match) => (
+            {matchesByGroup[activeGroup].map((match) => (
               <div key={match.id} className="p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f] shadow-sm">
                 <p className="text-[10px] text-gray-500 text-center mb-3 font-mono">
                   Partido #{match.id} · {match.match_date} a las {match.match_time}
                 </p>
                 
-                {/* Contenedor Grid */}
+                {/* Contenedor Grid con altura simétrica */}
                 <div className="grid grid-cols-3 gap-2 items-stretch auto-rows-fr">
                   
-                  {/* Botón Equipo Local */}
+                  {/* Botón Equipo Local (Azul HEX #009AFE) */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'home')}
                     disabled={hasSubmitted}
                     className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 transition-all border h-full ${
                       predictions[match.id] === 'home' 
-                        ? 'bg-[#01CB3B] border-[#02e643] text-white font-bold' 
+                        ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
                         : 'bg-[#1a1a1a] border-transparent text-gray-400'
                     } ${!hasSubmitted && 'hover:bg-[#222]'}`}
                   >
@@ -283,13 +297,13 @@ export default function GroupsPage() {
                     <span className="text-[11px] font-semibold truncate w-full text-center">{match.home_team}</span>
                   </button>
 
-                  {/* Botón Empate */}
+                  {/* Botón Empate (Azul bg-[#009AFE]) */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'draw')}
                     disabled={hasSubmitted}
                     className={`flex flex-col items-center justify-center p-3 rounded-xl gap-1 transition-all border h-full ${
                       predictions[match.id] === 'draw' 
-                        ? 'bg-[#244ffe] border-[#3b62ff] text-white font-bold' 
+                        ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
                         : 'bg-[#1a1a1a] border-transparent text-gray-400'
                     } ${!hasSubmitted && 'hover:bg-[#222]'}`}
                   >
@@ -297,13 +311,13 @@ export default function GroupsPage() {
                     <span className="text-[11px] font-semibold">Empate</span>
                   </button>
 
-                  {/* Botón Equipo Visitante */}
+                  {/* Botón Equipo Visitante (Azul HEX #009AFE) */}
                   <button 
                     onClick={() => handleSelectPrediction(match.id, 'away')}
                     disabled={hasSubmitted}
                     className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 transition-all border h-full ${
                       predictions[match.id] === 'away' 
-                        ? 'bg-[#01CB3B] border-[#02e643] text-white font-bold' 
+                        ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
                         : 'bg-[#1a1a1a] border-transparent text-gray-400'
                     } ${!hasSubmitted && 'hover:bg-[#222]'}`}
                   >
@@ -321,7 +335,7 @@ export default function GroupsPage() {
             ))}
           </div>
         </div>
-      ))}
+      )}
     </div>
   )
 }
