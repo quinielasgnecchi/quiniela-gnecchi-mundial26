@@ -35,7 +35,12 @@ export default function GroupsPage() {
   const [predictions, setPredictions] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [hasSubmitted, setHasSubmitted] = useState(false)
+  
+  // BLOQUEO LOCAL INMEDIATO: Revisa si el navegador ya tiene la orden de bloquear
+  const [hasSubmitted, setHasSubmitted] = useState<boolean>(() => {
+    return localStorage.getItem('quiniela_groups_submitted') === 'true'
+  })
+  
   const [activeGroup, setActiveGroup] = useState<string>('A')
 
   const totalMatches = dbMatches.length
@@ -60,7 +65,6 @@ export default function GroupsPage() {
     
     async function loadAllData() {
       try {
-        // 1. Descargar los partidos reales de la BD
         const { data: fetchedMatches, error: matchesError } = await supabase
           .from('matches')
           .select('*')
@@ -77,7 +81,6 @@ export default function GroupsPage() {
           }
         }
 
-        // 2. Traer el historial existente del usuario
         const { data: userPreds, error: predsError } = await supabase
           .from('predictions')
           .select('match_id, prediction')
@@ -91,28 +94,10 @@ export default function GroupsPage() {
             initialPreds[item.match_id] = item.prediction
           })
           setPredictions(initialPreds)
-          
-          // SEGURO ULTRA: Si el usuario ya tiene predicciones hechas en la base de datos,
-          // asumimos directamente que la quiniela está enviada y bloqueada.
-          if (userPreds.length >= 72) {
-            setHasSubmitted(true)
-          }
-        }
-
-        // 3. Doble chequeo con la tabla de envíos oficiales
-        const { data: submission } = await supabase
-          .from('submissions')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('phase', 'groups')
-          .maybeSingle()
-
-        if (submission) {
-          setHasSubmitted(true)
         }
 
       } catch (err) {
-        console.error("Error al cargar la visualización:", err)
+        console.error("Error al cargar:", err)
       } finally {
         setLoading(false)
       }
@@ -122,7 +107,7 @@ export default function GroupsPage() {
   }, [user])
 
   const handleSelectPrediction = (matchId: number, value: string) => {
-    if (hasSubmitted) return
+    if (hasSubmitted) return // Bloqueo total de clics
     setPredictions(prev => ({ ...prev, [matchId]: value }))
   }
 
@@ -160,8 +145,11 @@ export default function GroupsPage() {
         submitted_at: new Date().toISOString()
       }, { onConflict: 'user_id,phase' })
 
-      alert("🚀 ¡Tus pronósticos se han enviado con éxito! Ahora tu quiniela está guardada oficialmente.")
+      // ACCIÓN CLAVE: Forzamos el guardado en la memoria interna del navegador
+      localStorage.setItem('quiniela_groups_submitted', 'true')
       setHasSubmitted(true)
+      
+      alert("🚀 ¡Tus pronósticos se han enviado con éxito! Ahora tu quiniela está guardada oficialmente.")
       navigate('/dashboard')
     } catch (error: any) {
       console.error(error)
@@ -190,7 +178,7 @@ export default function GroupsPage() {
           </p>
         </div>
         
-        {/* MODIFICACIÓN: El botón DESAPARECE por completo si ya fue enviado */}
+        {/* EL BOTÓN DESAPARECE DE LA EXISTENCIA SI HAS_SUBMITTED ES TRUE */}
         {!hasSubmitted && (
           <button 
             onClick={handleSave} 
@@ -224,7 +212,6 @@ export default function GroupsPage() {
           />
         </div>
         
-        {/* Mensajes de estado alternables */}
         {hasSubmitted ? (
           <p className="text-[10px] text-[#01CB3B] font-bold mt-2 text-right">
             ✓ Quiniela guardada y cerrada de forma definitiva.
@@ -247,6 +234,7 @@ export default function GroupsPage() {
           {sortedGroupNames.map((groupName) => (
             <button
               key={groupName}
+              type="button"
               onClick={() => setActiveGroup(groupName)}
               className={`flex-none w-9 h-9 rounded-xl text-xs font-bold transition-all border flex items-center justify-center ${
                 activeGroup === groupName
@@ -281,13 +269,14 @@ export default function GroupsPage() {
                   
                   {/* Botón Equipo Local */}
                   <button 
+                    type="button"
                     onClick={() => handleSelectPrediction(match.id, 'home')}
                     disabled={hasSubmitted}
                     className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 transition-all border h-full ${
                       predictions[match.id] === 'home' 
                         ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
                         : 'bg-[#1a1a1a] border-transparent text-gray-400'
-                    } ${hasSubmitted ? 'cursor-default opacity-80' : 'hover:bg-[#222]'}`}
+                    } ${hasSubmitted ? 'cursor-default opacity-60' : 'hover:bg-[#222]'}`}
                   >
                     <img 
                       src={`https://flagcdn.com/w80/${FLAG_MAP[match.home_team] || 'un'}.png`} 
@@ -300,13 +289,14 @@ export default function GroupsPage() {
 
                   {/* Botón Empate */}
                   <button 
+                    type="button"
                     onClick={() => handleSelectPrediction(match.id, 'draw')}
                     disabled={hasSubmitted}
                     className={`flex flex-col items-center justify-center p-3 rounded-xl gap-1 transition-all border h-full ${
                       predictions[match.id] === 'draw' 
                         ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
                         : 'bg-[#1a1a1a] border-transparent text-gray-400'
-                    } ${hasSubmitted ? 'cursor-default opacity-80' : 'hover:bg-[#222]'}`}
+                    } ${hasSubmitted ? 'cursor-default opacity-60' : 'hover:bg-[#222]'}`}
                   >
                     <span className="text-lg leading-none">🫱🏻‍🫲🏼</span>
                     <span className="text-[11px] font-semibold">Empate</span>
@@ -314,13 +304,14 @@ export default function GroupsPage() {
 
                   {/* Botón Equipo Visitante */}
                   <button 
+                    type="button"
                     onClick={() => handleSelectPrediction(match.id, 'away')}
                     disabled={hasSubmitted}
                     className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 transition-all border h-full ${
                       predictions[match.id] === 'away' 
                         ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
                         : 'bg-[#1a1a1a] border-transparent text-gray-400'
-                    } ${hasSubmitted ? 'cursor-default opacity-80' : 'hover:bg-[#222]'}`}
+                    } ${hasSubmitted ? 'cursor-default opacity-60' : 'hover:bg-[#222]'}`}
                   >
                     <img 
                       src={`https://flagcdn.com/w80/${FLAG_MAP[match.away_team] || 'un'}.png`} 
