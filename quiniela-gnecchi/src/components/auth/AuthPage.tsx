@@ -31,7 +31,6 @@ export default function AuthPage() {
         })
         if (signUpError) throw signUpError
 
-        // Capturamos el caso donde Supabase envía el correo de confirmación
         if (data?.user && data.user.identities && data.user.identities.length === 0) {
           setMessage({
             type: 'info',
@@ -143,17 +142,31 @@ export default function AuthPage() {
           </button>
         </form>
 
+        {/* Switch inferior con el resalte en verde HEX #01CB3B */}
         <div className="mt-6 pt-4 border-t border-[#1f1f1f] text-center">
-          <button
-            type="button"
-            onClick={() => {
-              setIsFirstTime(!isFirstTime)
-              setMessage(null)
-            }}
-            className="text-xs text-gray-400 hover:text-white transition-colors underline decoration-dotted underline-offset-4"
-          >
-            {isFirstTime ? '¿Ya tienes cuenta? Inicia sesión aquí' : '¿Es tu primera vez participando? Regístrate aquí'}
-          </button>
+          {isFirstTime ? (
+            <button
+              type="button"
+              onClick={() => {
+                setIsFirstTime(false)
+                setMessage(null)
+              }}
+              className="text-xs text-gray-400 hover:text-white transition-colors"
+            >
+              ¿Ya tienes cuenta? <span className="underline decoration-dotted underline-offset-4 font-bold text-[#009AFE]">Inicia sesión aquí</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setIsFirstTime(true)
+                setMessage(null)
+              }}
+              className="text-xs text-gray-400 hover:text-white transition-colors"
+            >
+              ¿Es tu primera vez participando? <span className="underline decoration-dotted underline-offset-4 font-bold text-[#01CB3B]">Regístrate aquí</span>
+            </button>
+          )}
         </div>
 
       </div>
