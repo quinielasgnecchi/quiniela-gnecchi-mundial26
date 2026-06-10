@@ -60,7 +60,7 @@ export default function GroupsPage() {
     
     async function loadAllData() {
       try {
-        // 1. Descargar partidos reales de la BD
+        // 1. Descargar los partidos reales de la BD
         const { data: fetchedMatches, error: matchesError } = await supabase
           .from('matches')
           .select('*')
@@ -77,19 +77,7 @@ export default function GroupsPage() {
           }
         }
 
-        // 2. Verificar de forma estricta si ya existe un registro de entrega
-        const { data: submission, error: subError } = await supabase
-          .from('submissions')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('phase', 'groups')
-          .maybeSingle() // Evita lanzar excepciones molestas si devuelve vacío
-
-        if (submission) {
-          setHasSubmitted(true)
-        }
-
-        // 3. Cargar respuestas guardadas del usuario
+        // 2. Traer el historial existente del usuario
         const { data: userPreds, error: predsError } = await supabase
           .from('predictions')
           .select('match_id, prediction')
@@ -97,15 +85,34 @@ export default function GroupsPage() {
 
         if (predsError) throw predsError
 
-        if (userPreds) {
+        if (userPreds && userPreds.length > 0) {
           const initialPreds: Record<number, string> = {}
           userPreds.forEach(item => {
             initialPreds[item.match_id] = item.prediction
           })
           setPredictions(initialPreds)
+          
+          // SEGURO ULTRA: Si el usuario ya tiene predicciones hechas en la base de datos,
+          // asumimos directamente que la quiniela está enviada y bloqueada.
+          if (userPreds.length >= 72) {
+            setHasSubmitted(true)
+          }
         }
+
+        // 3. Doble chequeo con la tabla de envíos oficiales
+        const { data: submission } = await supabase
+          .from('submissions')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('phase', 'groups')
+          .maybeSingle()
+
+        if (submission) {
+          setHasSubmitted(true)
+        }
+
       } catch (err) {
-        console.error("Error cargando el estado de visualización:", err)
+        console.error("Error al cargar la visualización:", err)
       } finally {
         setLoading(false)
       }
@@ -115,7 +122,6 @@ export default function GroupsPage() {
   }, [user])
 
   const handleSelectPrediction = (matchId: number, value: string) => {
-    // Si ya fue enviado, bloqueamos cualquier mutación del estado en interfaz
     if (hasSubmitted) return
     setPredictions(prev => ({ ...prev, [matchId]: value }))
   }
@@ -180,27 +186,26 @@ export default function GroupsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Fase de Grupos</h1>
           <p className="text-xs text-gray-500 mt-1">
-            {hasSubmitted ? 'Modo Visualización · Respuestas Guardadas' : 'Selecciona el ganador de cada partido'}
+            {hasSubmitted ? '🔒 Modo Visualización · Pronósticos Bloqueados' : 'Selecciona el ganador de cada partido'}
           </p>
         </div>
         
-        <button 
-          onClick={handleSave} 
-          disabled={saving || hasSubmitted}
-          className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-colors shadow-lg ${
-            hasSubmitted 
-              ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700' 
-              : 'bg-[#009AFE] hover:bg-[#0086dd] text-white'
-          }`}
-        >
-          {saving ? 'Enviando...' : hasSubmitted ? '🔒 Respuestas Bloqueadas' : '🚀 Enviar Respuestas'}
-        </button>
+        {/* MODIFICACIÓN: El botón DESAPARECE por completo si ya fue enviado */}
+        {!hasSubmitted && (
+          <button 
+            onClick={handleSave} 
+            disabled={saving}
+            className="px-5 py-2.5 rounded-xl font-bold text-xs transition-colors shadow-lg bg-[#009AFE] hover:bg-[#0086dd] text-white"
+          >
+            {saving ? 'Enviando...' : '🚀 Enviar Respuestas'}
+          </button>
+        )}
       </div>
 
-      {/* Alerta de bloqueo visual */}
+      {/* Alerta estática de bloqueo */}
       {hasSubmitted && (
-        <div className="mb-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs text-center font-medium animate-pulse">
-          🔒 Modo lectura activo. Tus respuestas están consolidadas y no admiten más cambios.
+        <div className="mb-4 p-3 rounded-xl bg-green-500/10 border border-green-500/20 text-[#01CB3B] text-xs text-center font-medium">
+          ✓ Tus respuestas se encuentran registradas en el servidor. Has completado esta fase.
         </div>
       )}
 
@@ -218,9 +223,11 @@ export default function GroupsPage() {
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
+        
+        {/* Mensajes de estado alternables */}
         {hasSubmitted ? (
           <p className="text-[10px] text-[#01CB3B] font-bold mt-2 text-right">
-            ✓ Pronósticos enviados correctamente.
+            ✓ Quiniela guardada y cerrada de forma definitiva.
           </p>
         ) : totalMatches - completedMatches > 0 ? (
           <p className="text-[10px] text-gray-500 mt-2 text-right">
@@ -228,7 +235,7 @@ export default function GroupsPage() {
           </p>
         ) : (
           <p className="text-[10px] text-[#01CB3B] font-bold mt-2 text-right">
-            🎉 ¡Listo! Has completado todos los partidos.
+            🎉 ¡Listo! Puedes enviar tus respuestas ahora.
           </p>
         )}
       </div>
@@ -253,7 +260,7 @@ export default function GroupsPage() {
         </div>
       </div>
 
-      {/* Renderizado de Partidos */}
+      {/* Renderizado único del Grupo Activo */}
       {activeGroup && matchesByGroup[activeGroup] && (
         <div className="mb-10">
           <div className="flex items-center gap-2 mb-4">
