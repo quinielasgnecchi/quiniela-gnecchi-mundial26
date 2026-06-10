@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 
 interface RankingUser {
   id: string
-  full_name: string | null
+  full_name: string
   avatar_url: string | null
   points: number
 }
@@ -17,22 +17,39 @@ export default function RankingPage() {
       try {
         setLoading(true)
         
-        // Consultamos los usuarios registrados en tu tabla pública de perfiles
+        // Consultamos los usuarios de tu tabla real 'profiles'
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, full_name, avatar_url, points')
+          .select('id, full_name, email, avatar_url, points')
           .order('points', { ascending: false })
-          .order('full_name', { ascending: true })
 
         if (error) throw error
 
         if (data) {
-          const formattedData = (data as any[]).map(user => ({
-            id: user.id,
-            full_name: user.full_name || 'Usuario Anónimo',
-            avatar_url: user.avatar_url,
-            points: user.points ?? 0
-          }))
+          const formattedData = (data as any[]).map(user => {
+            // Plan de respaldo: Si full_name está vacío, extrae el nombre desde su email
+            let displayName = user.full_name?.trim()
+            if (!displayName && user.email) {
+              displayName = user.email.split('@')[0]
+            }
+            if (!displayName) {
+              displayName = 'Competidor'
+            }
+
+            return {
+              id: user.id,
+              full_name: displayName,
+              avatar_url: user.avatar_url,
+              points: user.points ?? 0
+            }
+          })
+          
+          // Ordenar secundariamente por nombre si empatan en puntos (0 puntos al inicio)
+          formattedData.sort((a, b) => {
+            if (b.points !== a.points) return b.points - a.points
+            return a.full_name.localeCompare(b.full_name)
+          })
+
           setRanking(formattedData)
         }
       } catch (err) {
@@ -65,14 +82,14 @@ export default function RankingPage() {
 
       {ranking.length === 0 ? (
         <div className="p-8 rounded-2xl bg-[#141414] border border-[#1f1f1f] text-center text-gray-500 text-sm">
-          No hay ningún usuario registrado todavía.
+          No hay ningún usuario registrado todavía o verifica las políticas RLS.
         </div>
       ) : (
         <div className="flex flex-col gap-3">
           {ranking.map((player, index) => {
             const position = index + 1
             
-            // Estilos especiales para el podio (Fijados y cerrados correctamente)
+            // Estilos estéticos para el podio
             let badgeStyle = "bg-[#1a1a1a] text-gray-400"
             if (position === 1) badgeStyle = "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
             if (position === 2) badgeStyle = "bg-gray-400/10 text-gray-300 border border-gray-400/20"
@@ -94,15 +111,15 @@ export default function RankingPage() {
                     {player.avatar_url ? (
                       <img 
                         src={player.avatar_url} 
-                        alt={player.full_name || 'Avatar'} 
+                        alt={player.full_name} 
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${player.id}`
+                          (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${player.full_name}&backgroundType=gradientLinear`
                         }}
                       />
                     ) : (
                       <img 
-                        src={`https://api.dicebear.com/7.x/initials/svg?seed=${player.full_name || 'U'}&backgroundType=gradientLinear`} 
+                        src={`https://api.dicebear.com/7.x/initials/svg?seed=${player.full_name}&backgroundType=gradientLinear`} 
                         alt="Default Avatar"
                         className="w-full h-full object-cover"
                       />
