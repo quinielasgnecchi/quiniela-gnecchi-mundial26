@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { GROUP_MATCHES } from '../../data/matches'
 import { getTeamFlag } from '../../types'
+import { fetchLiveMatches } from '../../lib/footballApi'
 
 interface Participant {
   id: string
@@ -23,10 +24,14 @@ export default function AdminPage() {
   const [results, setResults] = useState<Record<number, 'home' | 'draw' | 'away'>>({})
   const [savingResults, setSavingResults] = useState(false)
   const [activeTab, setActiveTab] = useState<'participants' | 'results' | 'settings'>('participants')
+  
+  // Estados para el control de la API en vivo
+  const [syncing, setSyncing] = useState(false)
+  const [syncMessage, setSyncMessage] = useState('')
 
   useEffect(() => {
     if (user && user.role !== 'admin') navigate('/')
-    if (user?.role === 'admin') { fetchParticipants(); fetchPhase() }
+    if (user?.role === 'admin') { fetchParticipants(); fetchPhase(); fetchSavedResults() }
   }, [user])
 
   async function fetchPhase() {
@@ -41,6 +46,17 @@ export default function AdminPage() {
     setParticipants((profiles ?? []).map(p => ({ ...p, submitted: submittedIds.has(p.id) })))
   }
 
+  async function fetchSavedResults() {
+    const { data } = await supabase.from('match_results').select('match_id, result')
+    if (data) {
+      const initialResults: Record<number, 'home' | 'draw' | 'away'> = {}
+      data.forEach(row => {
+        initialResults[row.match_id] = row.result as 'home' | 'draw' | 'away'
+      })
+      setResults(initialResults)
+    }
+  }
+
   async function togglePhase() {
     const newVal = !phaseOpen
     if (phaseId) {
@@ -49,6 +65,69 @@ export default function AdminPage() {
       await supabase.from('phases').insert({ phase_key: 'groups', name: 'Fase de grupos', is_open: newVal })
     }
     setPhaseOpen(newVal)
+  }
+
+  // Sincronización y cruce directo con la API externa
+  async function syncApiResults() {
+    setSyncing(true)
+    setSyncMessage('Conectando con football-data.org...')
+    try {
+      const apiMatches = await fetchLiveMatches()
+      
+      const { data: tusPartidos, error: errorPartidos } = await supabase
+        .from('matches')
+        .select('id, home_team, away_team')
+
+      if (errorPartidos || !tusPartidos) {
+        throw new Error('No se pudieron leer los partidos de Supabase')
+      }
+
+      let contadorActualizados = 0
+      const nuevasPrediccionesLocal: Record<number, 'home' | 'draw' | 'away'> = { ...results }
+
+      for (const apiMatch of apiMatches) {
+        if (apiMatch.status === 'FINISHED') {
+          const casaAPI = apiMatch.homeTeam.name
+          const visitaAPI = apiMatch.awayTeam.name
+
+          const miPartido = tusPartidos.find(p => 
+            p.home_team.toLowerCase() === casaAPI.toLowerCase() ||
+            p.away_team.toLowerCase() === visitaAPI.toLowerCase()
+          )
+
+          if (miPartido) {
+            const golesCasa = apiMatch.score.fullTime.home
+            const golesVisita = apiMatch.score.fullTime.away
+            
+            let ganador: 'home' | 'draw' | 'away' = 'draw'
+            if (golesCasa > golesVisita) ganador = 'home'
+            if (golesVisita > golesCasa) ganador = 'away'
+
+            await supabase
+              .from('match_results')
+              .upsert({
+                match_id: miPartido.id,
+                home_score: golesCasa,
+                away_score: golesVisita,
+                result: ganador,
+                recorded_at: new Date().toISOString()
+              }, { onConflict: 'match_id' })
+
+            nuevasPrediccionesLocal[miPartido.id] = ganador
+            contadorActualizados++
+          }
+        }
+      }
+
+      setResults(nuevasPrediccionesLocal)
+      await supabase.rpc('recalculate_points')
+      setSyncMessage(`🎉 Éxito: ${contadorActualizados} partidos actualizados y puntos recalculados.`)
+    } catch (error: any) {
+      console.error(error)
+      setSyncMessage(`❌ Error: ${error.message || 'Error de conexión'}`)
+    } finally {
+      setSyncing(false)
+    }
   }
 
   async function saveResults() {
@@ -62,7 +141,6 @@ export default function AdminPage() {
       await supabase.from('match_results').upsert(row, { onConflict: 'match_id' })
     }
 
-    // Recalculate points
     await supabase.rpc('recalculate_points')
     setSavingResults(false)
     alert('Resultados guardados y puntos actualizados ✅')
@@ -81,7 +159,7 @@ export default function AdminPage() {
   const submitted = participants.filter(p => p.submitted).length
 
   return (
-    <div className="px-4 pt-6 pb-nav">
+    <div className="px-4 pt-6 pb-nav text-white bg-[#0a0a0a] min-h-screen">
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => navigate('/')} className="text-gray-400 text-xl">←</button>
         <div>
@@ -92,15 +170,15 @@ export default function AdminPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2 mb-6">
-        <div className="card-dark p-3 text-center">
+        <div className="bg-[#141414] border border-[#1f1f1f] rounded-2xl p-3 text-center">
           <p className="text-2xl font-bold">{participants.length}</p>
           <p className="text-xs text-gray-500">Registrados</p>
         </div>
-        <div className="card-dark p-3 text-center">
+        <div className="bg-[#141414] border border-[#1f1f1f] rounded-2xl p-3 text-center">
           <p className="text-2xl font-bold text-green-400">{submitted}</p>
           <p className="text-xs text-gray-500">Enviaron</p>
         </div>
-        <div className="card-dark p-3 text-center">
+        <div className="bg-[#141414] border border-[#1f1f1f] rounded-2xl p-3 text-center">
           <p className="text-2xl font-bold text-yellow-400">{participants.length - submitted}</p>
           <p className="text-xs text-gray-500">Pendientes</p>
         </div>
@@ -134,7 +212,7 @@ export default function AdminPage() {
           </div>
           <div className="flex flex-col gap-2">
             {participants.map(p => (
-              <div key={p.id} className="card-dark p-3 flex items-center gap-3">
+              <div key={p.id} className="bg-[#141414] border border-[#1f1f1f] rounded-2xl p-3 flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-[#1a1a1a] overflow-hidden flex items-center justify-center flex-shrink-0">
                   {p.avatar_url
                     ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -158,14 +236,33 @@ export default function AdminPage() {
 
       {activeTab === 'results' && (
         <div>
-          <p className="text-sm text-gray-400 mb-4">Ingresa el resultado de cada partido para calcular puntos.</p>
+          {/* Módulo Cruce de Datos API-Football-Data */}
+          <div className="mb-6 p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Conexión API en Vivo</h3>
+            <button
+              onClick={syncApiResults}
+              disabled={syncing}
+              className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all ${
+                syncing ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'
+              }`}
+            >
+              {syncing ? 'Sincronizando Marcadores...' : '🔄 Sincronizar desde football-data.org'}
+            </button>
+            {syncMessage && (
+              <p className="mt-2.5 text-center text-xs font-medium text-gray-300 bg-[#1c1c1c] p-2 rounded-lg border border-[#262626]">
+                {syncMessage}
+              </p>
+            )}
+          </div>
+
+          <p className="text-sm text-gray-400 mb-4">Ingresa manualmente el resultado de cada partido o usa la sincronización externa.</p>
           <div className="flex flex-col gap-3">
-            {GROUP_MATCHES.slice(0, 10).map(match => {
+            {GROUP_MATCHES.map(match => {
               const res = results[match.id]
               const hf = getTeamFlag(match.home_team)
               const af = getTeamFlag(match.away_team)
               return (
-                <div key={match.id} className="card-dark p-3">
+                <div key={match.id} className="bg-[#141414] border border-[#1f1f1f] rounded-2xl p-3">
                   <p className="text-xs text-gray-500 mb-2">{match.match_date} · Grupo {match.group_name}</p>
                   <div className="flex items-center gap-2 mb-2 text-sm">
                     <span>{hf}</span>
@@ -194,18 +291,18 @@ export default function AdminPage() {
             })}
           </div>
           <button
-            className="btn-primary mt-4"
+            className="w-full bg-[#0299fc] hover:bg-[#0286dd] text-white py-2.5 rounded-xl font-bold text-xs transition-colors mt-4"
             onClick={saveResults}
             disabled={savingResults || Object.keys(results).length === 0}
           >
-            {savingResults ? 'Calculando...' : '💾 Guardar resultados y calcular puntos'}
+            {savingResults ? 'Calculando...' : '💾 Guardar resultados manuales y calcular puntos'}
           </button>
         </div>
       )}
 
       {activeTab === 'settings' && (
         <div className="flex flex-col gap-4">
-          <div className="card-dark p-5">
+          <div className="bg-[#141414] border border-[#1f1f1f] rounded-2xl p-5">
             <div className="flex items-center justify-between mb-2">
               <div>
                 <p className="font-medium">Fase de grupos</p>
@@ -227,7 +324,7 @@ export default function AdminPage() {
               </button>
             </div>
           </div>
-          <div className="card-dark p-4 text-center text-gray-500 text-sm">
+          <div className="bg-[#141414] border border-[#1f1f1f] rounded-2xl p-4 text-center text-gray-500 text-sm">
             Más configuraciones disponibles próximamente
           </div>
         </div>
