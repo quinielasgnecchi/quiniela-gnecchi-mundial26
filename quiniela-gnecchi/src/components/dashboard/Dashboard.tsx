@@ -47,7 +47,7 @@ export default function Dashboard() {
   if (loading) return <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-gray-500 text-sm">Cargando...</div>
 
   return (
-    <div className="px-4 pt-6 pb-nav min-h-screen bg-[#0a0a0a] text-white">
+    <div className="px-4 pt-6 pb-24 min-h-screen bg-[#0a0a0a] text-white">
       <div className="flex items-center justify-between mb-6">
         <div>
           <p className="text-xs text-gray-500 mb-1">Bienvenido de vuelta</p>
@@ -70,9 +70,9 @@ export default function Dashboard() {
       </div>
 
       {phaseOpen && !stats.submitted && (
-        <div className="p-4 rounded-2xl mb-5 text-center bg-[rgba(36,79,254,0.08)] border border-[rgba(36,79,254,0.2)]">
-          <p className="text-xs text-gray-500 mb-2">Tiempo para registrar pronósticos</p>
-          <p className="text-2xl font-bold text-[#244ffe]">
+        <div className="p-4 rounded-2xl mb-5 text-center bg-[#141414] border border-[#1f1f1f]">
+          <p className="text-xs text-gray-500 mb-2">Tiempo restante de la fase</p>
+          <p className="text-2xl font-bold text-gray-300">
             {diff > 0 ? `${Math.floor(diff / 3600000)}h ${Math.floor((diff % 3600000) / 60000)}m ${Math.floor((diff % 60000) / 1000)}s` : 'Cerrado'}
           </p>
         </div>
@@ -90,24 +90,18 @@ export default function Dashboard() {
           <span>{progress}%</span>
         </div>
         <div className="h-2 rounded-full bg-[#1a1a1a] overflow-hidden">
-          <div className="h-full rounded-full bg-[#244ffe] transition-all" style={{ width: `${progress}%` }} />
+          <div className="h-full rounded-full bg-gray-600 transition-all" style={{ width: `${progress}%` }} />
         </div>
       </div>
 
-      <button className="w-full py-4 rounded-xl font-bold text-sm mb-4" style={{ background: stats.submitted ? '#1a1a1a' : '#244ffe', border: stats.submitted ? '1px solid #2a2a2a' : 'none' }} onClick={() => navigate('/pronosticos')}>
-        {stats.submitted ? '👁 Ver mis pronósticos' : '⚽ Registrar pronósticos'}
+      {/* Botón neutral de gris para consulta únicamente */}
+      <button 
+        className="w-full py-4 rounded-xl font-bold text-sm mb-4 text-gray-300 transition-colors" 
+        style={{ background: '#1a1a1a', border: '1px solid #2a2a2a' }} 
+        onClick={() => navigate('/pronosticos')}
+      >
+        Consultar mis pronósticos ⚽️
       </button>
-
-      <div className="grid grid-cols-2 gap-3">
-        <button onClick={() => navigate('/ranking')} className="p-4 rounded-2xl text-left bg-[#141414] border border-[#1f1f1f]">
-          <p className="text-lg mb-1">🏆</p>
-          <p className="text-sm font-medium">Ranking</p>
-        </button>
-        <button onClick={() => navigate('/resultados')} className="p-4 rounded-2xl text-left bg-[#141414] border border-[#1f1f1f]">
-          <p className="text-lg mb-1">⚽</p>
-          <p className="text-sm font-medium">Resultados</p>
-        </button>
-      </div>
     </div>
   )
 }
