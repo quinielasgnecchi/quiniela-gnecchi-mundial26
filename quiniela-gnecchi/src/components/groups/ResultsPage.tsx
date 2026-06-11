@@ -25,7 +25,6 @@ export default function ResultsPage() {
   }, [])
 
   async function fetchMatchesFromDb() {
-    // Leemos directo de la tabla 'matches' ordenados numéricamente por su ID
     const { data } = await supabase
       .from('matches')
       .select('id, group_name, match_date, match_time, home_team, away_team, home_score, away_score, result')
@@ -37,7 +36,6 @@ export default function ResultsPage() {
     setLoading(false)
   }
 
-  // Cuenta cuántos partidos ya tienen un resultado oficial guardado por ti
   const totalResults = matches.filter(m => m.result !== null).length
 
   return (
@@ -109,13 +107,6 @@ export default function ResultsPage() {
                     <span className="text-xs font-medium text-center text-white leading-tight">{match.away_team}</span>
                   </div>
                 </div>
-
-                {/* Badge Inferior Informativo */}
-                {isFinished && (
-                  <div className="text-center mt-2.5 pt-2 text-[10px] tracking-wide uppercase border-t border-[#1f1f1f]" style={{color:'#00CA42'}}>
-                    Ganador en sistema: <span className="font-bold">{match.result}</span>
-                  </div>
-                )}
               </div>
             )
           })
