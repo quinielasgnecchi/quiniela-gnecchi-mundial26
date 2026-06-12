@@ -47,8 +47,8 @@ export default function AuthPage() {
         style={{ backgroundImage: `url(${wallpaper})` }}
       />
       
-      {/* Contenedor principal: un 20% más estrecho (max-w-[230px]) */}
-      <div className="w-full max-w-[230px] p-4 rounded-2xl bg-white/50 border border-white/20 shadow-2xl relative z-10 backdrop-blur-md">
+      {/* Contenedor principal: Un 7% más estrecho (max-w-[214px]), un 7% más alto (py-6) y Negro Sólido */}
+      <div className="w-full max-w-[214px] px-4 py-6 rounded-2xl bg-black border border-white/10 shadow-2xl relative z-10">
         
         {/* Cabecera con títulos del mismo tamaño, tipografía común y color #BCD100 */}
         <div className="text-center mb-4">
@@ -72,10 +72,10 @@ export default function AuthPage() {
         {message && (
           <div className={`mb-3 p-3 rounded-xl text-xs font-semibold text-center border ${
             message.type === 'success' 
-              ? 'bg-green-500/20 border-green-500/30 text-green-800' 
+              ? 'bg-green-500/20 border-green-500/30 text-green-400' 
               : message.type === 'info'
-              ? 'bg-blue-500/20 border-blue-500/30 text-blue-800'
-              : 'bg-red-500/20 border-red-500/30 text-red-800'
+              ? 'bg-blue-500/20 border-blue-500/30 text-blue-400'
+              : 'bg-red-500/20 border-red-500/30 text-red-400'
           }`}>
             {message.text}
           </div>
@@ -84,7 +84,7 @@ export default function AuthPage() {
         <form onSubmit={handleAuth} className="flex flex-col gap-3">
           
           <div className="flex flex-col gap-1">
-            <label className="text-[9px] font-bold text-gray-800 uppercase tracking-wider">Correo Electrónico</label>
+            <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Correo Electrónico</label>
             <input 
               type="email" 
               placeholder="tu@email.com"
@@ -96,27 +96,10 @@ export default function AuthPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[9px] font-bold text-gray-800 uppercase tracking-wider">Contraseña</label>
+            <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Contraseña</label>
             <input 
               type="password" 
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-white/90 border border-gray-300 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#009AFE] transition-colors"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full mt-1 py-2.5 rounded-xl bg-[#009AFE] hover:bg-[#0086dd] text-white font-bold text-xs transition-colors shadow-lg disabled:opacity-50"
-          >
-            {loading ? 'Procesando...' : 'Ingresar'}
-          </button>
-        </form>
-
-      </div>
-    </div>
-  )
-}
+              className="w-full px-3 py-2 rounded-xl bg-white/90 border border-gray-300 text-xs text-
