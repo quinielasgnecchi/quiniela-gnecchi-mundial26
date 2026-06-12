@@ -47,8 +47,8 @@ export default function AuthPage() {
         style={{ backgroundImage: `url(${wallpaper})` }}
       />
       
-      {/* Contenedor principal: Un 7% más estrecho (max-w-[214px]), un 7% más alto (py-6) y Negro Sólido */}
-      <div className="w-full max-w-[214px] px-4 py-6 rounded-2xl bg-black border border-white/10 shadow-2xl relative z-10">
+      {/* Contenedor principal: Modificado con bordes negros y curvatura adaptada al teléfono del fondo */}
+      <div className="w-full max-w-[214px] px-4 py-6 rounded-[36px] bg-black border border-black relative z-10">
         
         {/* Cabecera con títulos del mismo tamaño, tipografía común y color #BCD100 */}
         <div className="text-center mb-4">
