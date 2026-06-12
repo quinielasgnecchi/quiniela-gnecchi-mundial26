@@ -48,7 +48,7 @@ export default function AuthPage() {
       />
       
       {/* Contenedor principal: Un 5% más ancho (max-w-[225px]) y un 15% más alto (py-8) */}
-      <div className="w-full max-w-[225px] px-4 py-8 rounded-[36px] bg-black border border-black relative z-10">
+      <div className="w-full max-w-[224px] px-4 py-10 rounded-[36px] bg-black border border-black relative z-10">
         
         {/* Cabecera con títulos del mismo tamaño, tipografía común y color #BCD100 */}
         <div className="text-center mb-4">
