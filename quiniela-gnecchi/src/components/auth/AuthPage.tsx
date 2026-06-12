@@ -47,11 +47,11 @@ export default function AuthPage() {
         style={{ backgroundImage: `url(${wallpaper2})` }}
       />
       
-      {/* Contenedor principal: Cambiado a transparente (bg-transparent border-transparent) manteniendo dimensiones y figura */}
-      <div className="w-full max-w-[224px] px-4 py-[57px] rounded-[36px] bg-transparent border border-transparent relative z-10">
+      {/* Contenedor principal: Ancho reducido a max-w-[200px], manteniendo py-[57px] y figura transparente */}
+      <div className="w-full max-w-[200px] px-4 py-[57px] rounded-[36px] bg-transparent border border-transparent relative z-10">
         
-        {/* Cabecera: Desplazada hacia arriba (-mt-2) y con margen inferior reducido (mb-2) */}
-        <div className="text-center -mt-2 mb-2">
+        {/* Cabecera: Desplazada más hacia arriba (-mt-6) y con mayor separación inferior (mb-6) */}
+        <div className="text-center -mt-6 mb-6">
           {/* Títulos: Tamaño aumentado un 10% (text-[17.5px]) */}
           <h1 className="tracking-tight leading-tight flex flex-col items-center text-[#BCD100] text-[17.5px]">
             {/* Renglón 1 */}
