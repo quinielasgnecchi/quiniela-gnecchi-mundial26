@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import wallpaper from '../../../wallpaper.jpg'
+import wallpaper2 from '../../../wallpaper2.png'
 
 export default function AuthPage() {
   const [email, setEmail] = useState('')
@@ -41,10 +41,10 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen text-white flex flex-col justify-center items-center px-4 relative overflow-hidden bg-[#0a0a0a]">
       
-      {/* Fondo de pantalla nítido (sin bokeh) con opacidad para visibilidad */}
+      {/* Fondo de pantalla nítido (sin bokeh) con opacidad para visibilidad usando wallpaper2.png */}
       <div 
         className="absolute inset-0 bg-cover bg-center opacity-60 pointer-events-none"
-        style={{ backgroundImage: `url(${wallpaper})` }}
+        style={{ backgroundImage: `url(${wallpaper2})` }}
       />
       
       {/* Contenedor principal: Cambiado a transparente (bg-transparent border-transparent) manteniendo dimensiones y figura */}
