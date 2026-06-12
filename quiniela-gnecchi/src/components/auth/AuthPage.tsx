@@ -50,19 +50,19 @@ export default function AuthPage() {
       {/* Contenedor principal: Optimizado un 35% más pequeño verticalmente y un 10% más estrecho */}
       <div className="w-full max-w-[288px] p-4 rounded-2xl bg-white/50 border border-white/20 shadow-2xl relative z-10 backdrop-blur-md">
         
-        {/* Cabecera con títulos organizados en dos renglones */}
+        {/* Cabecera con títulos organizados en dos renglones del mismo tamaño */}
         <div className="text-center mb-4">
           <h1 className="tracking-tight leading-tight flex flex-col items-center">
             {/* Renglón 1 */}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-800 via-gray-700 to-gray-900 font-extrabold text-base uppercase">
               QUINIELA GNECCHI
             </span>
-            {/* Renglón 2: Mundial 2026 juntos */}
-            <span className="flex items-center gap-1.5 mt-0.5 filter drop-shadow-sm font-black">
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#01CB3B] via-[#E91E63] to-[#009AFE] uppercase text-2xl tracking-tighter">
+            {/* Renglón 2: Mundial 2026 juntos, del mismo tamaño (text-base) y con color fijo #005EFF */}
+            <span className="flex items-center gap-1 mt-0.5 font-black text-base text-[#005EFF] filter drop-shadow-sm">
+              <span className="uppercase tracking-tighter">
                 MUNDIAL
               </span>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-2xl font-mono tracking-wider">
+              <span className="font-mono tracking-wider">
                 2026
               </span>
             </span>
