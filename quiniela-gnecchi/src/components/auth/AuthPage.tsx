@@ -47,22 +47,22 @@ export default function AuthPage() {
         style={{ backgroundImage: `url(${wallpaper})` }}
       />
       
-      {/* Contenedor principal: Optimizado un 35% más pequeño verticalmente y un 10% más estrecho */}
-      <div className="w-full max-w-[288px] p-4 rounded-2xl bg-white/50 border border-white/20 shadow-2xl relative z-10 backdrop-blur-md">
+      {/* Contenedor principal: un 20% más estrecho (max-w-[230px]) */}
+      <div className="w-full max-w-[230px] p-4 rounded-2xl bg-white/50 border border-white/20 shadow-2xl relative z-10 backdrop-blur-md">
         
-        {/* Cabecera con títulos organizados en dos renglones del mismo tamaño */}
+        {/* Cabecera con títulos del mismo tamaño, tipografía común y color #BCD100 */}
         <div className="text-center mb-4">
-          <h1 className="tracking-tight leading-tight flex flex-col items-center">
+          <h1 className="tracking-tight leading-tight flex flex-col items-center text-[#BCD100]">
             {/* Renglón 1 */}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-800 via-gray-700 to-gray-900 font-extrabold text-base uppercase">
+            <span className="font-extrabold text-base uppercase">
               QUINIELA GNECCHI
             </span>
-            {/* Renglón 2: Mundial 2026 juntos, del mismo tamaño (text-base) y con color fijo #005EFF */}
-            <span className="flex items-center gap-1 mt-0.5 font-black text-base text-[#005EFF] filter drop-shadow-sm">
+            {/* Renglón 2: Mundial 2026 juntos con la misma tipografía y tamaño */}
+            <span className="flex items-center gap-1 mt-0.5 font-black text-base filter drop-shadow-sm">
               <span className="uppercase tracking-tighter">
                 MUNDIAL
               </span>
-              <span className="font-mono tracking-wider">
+              <span className="tracking-wider">
                 2026
               </span>
             </span>
