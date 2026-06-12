@@ -47,8 +47,8 @@ export default function AuthPage() {
         style={{ backgroundImage: `url(${wallpaper2})` }}
       />
       
-      {/* Contenedor principal: Ancho reducido a max-w-[215px], manteniendo py-[57px] y figura transparente */}
-      <div className="w-full max-w-[220px] px-4 py-[57px] rounded-[36px] bg-transparent border border-transparent relative z-10">
+      {/* Contenedor principal: Ancho reducido a max-w-[200px], manteniendo py-[57px] y figura transparente */}
+      <div className="w-full max-w-[200px] px-4 py-[57px] rounded-[36px] bg-transparent border border-transparent relative z-10">
         
         {/* Cabecera: Desplazada más hacia arriba (-mt-6) y con mayor separación inferior (mb-6) */}
         <div className="text-center -mt-6 mb-6">
@@ -82,8 +82,9 @@ export default function AuthPage() {
           </div>
         )}
 
-        <form onSubmit={handleAuth} className="flex flex-col gap-3">
+        <form onSubmit={handleAuth} className="flex flex-col">
           
+          {/* Correo Electrónico: Mantiene su posición inicial intacta */}
           <div className="flex flex-col gap-1">
             <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Correo Electrónico</label>
             <input 
@@ -96,7 +97,8 @@ export default function AuthPage() {
             />
           </div>
 
-          <div className="flex flex-col gap-1">
+          {/* Contraseña: Desplazada hacia abajo con mt-5 para dar más espacio libre */}
+          <div className="flex flex-col gap-1 mt-5">
             <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Contraseña</label>
             <input 
               type="password" 
@@ -108,10 +110,11 @@ export default function AuthPage() {
             />
           </div>
 
+          {/* Botón de Ingresar: Desplazado más hacia abajo con mt-6 para separarlo de la contraseña */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-1 py-2.5 rounded-xl bg-[#009AFE] hover:bg-[#0086dd] text-white font-bold text-xs transition-colors shadow-lg disabled:opacity-50"
+            className="w-full mt-6 py-2.5 rounded-xl bg-[#009AFE] hover:bg-[#0086dd] text-white font-bold text-xs transition-colors shadow-lg disabled:opacity-50"
           >
             {loading ? 'Procesando...' : 'Ingresar'}
           </button>
