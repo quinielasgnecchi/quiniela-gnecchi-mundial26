@@ -48,7 +48,7 @@ export default function AuthPage() {
       />
       
       {/* Contenedor principal: Ancho reducido a max-w-[215px], manteniendo py-[57px] y figura transparente */}
-      <div className="w-full max-w-[200px] px-4 py-[57px] rounded-[36px] bg-transparent border border-transparent relative z-10">
+      <div className="w-full max-w-[220px] px-4 py-[57px] rounded-[36px] bg-transparent border border-transparent relative z-10">
         
         {/* Cabecera: Desplazada más hacia arriba (-mt-6) y con mayor separación inferior (mb-6) */}
         <div className="text-center -mt-6 mb-6">
