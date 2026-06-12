@@ -4,10 +4,8 @@ import { supabase } from '../../lib/supabase'
 export default function AuthPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [fullName, setFullName] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
-  const [isFirstTime, setIsFirstTime] = useState(false)
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -15,40 +13,11 @@ export default function AuthPage() {
     setMessage(null)
 
     try {
-      if (isFirstTime) {
-        if (!fullName.trim()) {
-          throw new Error('Por favor, ingresa tu nombre completo para el ranking.')
-        }
-
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-            }
-          }
-        })
-        if (signUpError) throw signUpError
-
-        if (data?.user && data.user.identities && data.user.identities.length === 0) {
-          setMessage({
-            type: 'info',
-            text: '📧 Este correo ya está registrado. Si no confirmaste tu cuenta antes, busca el enlace de validación en tu bandeja de entrada.'
-          })
-        } else {
-          setMessage({ 
-            type: 'success', 
-            text: '📩 ¡Registro recibido! Hemos enviado un enlace de validación a tu correo electrónico. Por favor, confírmalo para poder ingresar.' 
-          })
-        }
-      } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
-        if (signInError) throw signInError
-      }
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      if (signInError) throw signInError
     } catch (error: any) {
       if (error.message?.includes('Email signup is disabled') || error.message?.includes('invalid')) {
         setMessage({
@@ -58,23 +27,31 @@ export default function AuthPage() {
       } else if (error.message?.includes('Invalid login credentials')) {
         setMessage({ 
           type: 'error', 
-          text: 'Contraseña incorrecta. Si es tu primera vez participando, marca la opción de registrarte abajo.' 
+          text: 'Credenciales inválidas. Por favor, verifica tu correo y contraseña.' 
         })
       } else {
         setMessage({ type: 'error', text: error.message || 'Ocurrió un error inesperado.' })
       }
+    } catch (err) {
+      console.error(err)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col justify-center items-center px-4 relative overflow-hidden">
+    <div className="min-h-screen text-white flex flex-col justify-center items-center px-4 relative overflow-hidden bg-[#0a0a0a]">
       
-      {/* Efecto de luz ambiental mundialista de fondo (Azul y Verde) */}
+      {/* Fondo de pantalla con efecto Bokeh al 70% */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center filter blur-md opacity-30 pointer-events-none scale-105"
+        style={{ backgroundImage: "url('/wallpaper.jpg')" }}
+      />
+      
+      {/* Efecto de luz ambiental mundialista secundario */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-gradient-to-tr from-[#009AFE]/10 to-[#01CB3B]/10 rounded-full blur-[80px] pointer-events-none" />
 
-      <div className="w-full max-w-md p-6 rounded-3xl bg-[#141414] border border-[#1f1f1f] shadow-2xl relative z-10 backdrop-blur-sm">
+      <div className="w-full max-w-md p-6 rounded-3xl bg-[#141414]/90 border border-[#1f1f1f] shadow-2xl relative z-10 backdrop-blur-md">
         
         {/* Cabecera con los Colores Oficiales del Mundial 2026 */}
         <div className="text-center mb-8">
@@ -89,8 +66,8 @@ export default function AuthPage() {
               2026
             </span>
           </h1>
-          <p className="text-xs text-gray-500 mt-3 font-medium">
-            {isFirstTime ? 'Crea tu perfil de competidor' : 'Introduce tus credenciales para acceder'}
+          <p className="text-xs text-gray-400 mt-3 font-medium">
+            Introduce tus credenciales para acceder
           </p>
         </div>
 
@@ -108,20 +85,6 @@ export default function AuthPage() {
 
         <form onSubmit={handleAuth} className="flex flex-col gap-4">
           
-          {isFirstTime && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Nombre Completo</label>
-              <input 
-                type="text" 
-                placeholder="Ej. Juan Cantera"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-[#1a1a1a] border border-[#262626] text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#009AFE] transition-colors"
-                required
-              />
-            </div>
-          )}
-
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Correo Electrónico</label>
             <input 
@@ -129,7 +92,7 @@ export default function AuthPage() {
               placeholder="tu@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-[#1a1a1a] border border-[#262626] text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#009AFE] transition-colors"
+              className="w-full px-4 py-3 rounded-xl bg-[#1a1a1a]/80 border border-[#262626] text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#009AFE] transition-colors"
               required
             />
           </div>
@@ -141,7 +104,7 @@ export default function AuthPage() {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-[#1a1a1a] border border-[#262626] text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#009AFE] transition-colors"
+              className="w-full px-4 py-3 rounded-xl bg-[#1a1a1a]/80 border border-[#262626] text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#009AFE] transition-colors"
               required
             />
           </div>
@@ -151,47 +114,9 @@ export default function AuthPage() {
             disabled={loading}
             className="w-full mt-2 py-3.5 rounded-xl bg-[#009AFE] hover:bg-[#0086dd] text-white font-bold text-sm transition-colors shadow-lg disabled:opacity-50"
           >
-            {loading ? 'Procesando...' : isFirstTime ? '🚀 Registrarme' : '🚪 Ingresar'}
+            {loading ? 'Procesando...' : '🚪 Ingresar'}
           </button>
         </form>
-
-        <div className="mt-6 pt-4 border-t border-[#1f1f1f] text-center">
-          {isFirstTime ? (
-            <button
-              type="button"
-              onClick={() => {
-                setIsFirstTime(false)
-                setMessage(null)
-              }}
-              className="text-xs text-gray-400 hover:text-white transition-colors"
-            >
-              ¿Ya tienes cuenta?{' '}
-              <span 
-                className="underline decoration-dotted underline-offset-4 font-bold"
-                style={{ color: '#009AFE' }}
-              >
-                Inicia sesión aquí
-              </span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setIsFirstTime(true)
-                setMessage(null)
-              }}
-              className="text-xs text-gray-400 hover:text-white transition-colors"
-            >
-              ¿Es tu primera vez participando?{' '}
-              <span 
-                className="underline decoration-dotted underline-offset-4 font-bold"
-                style={{ color: '#01CB3B' }}
-              >
-                Regístrate aquí
-              </span>
-            </button>
-          )}
-        </div>
 
       </div>
     </div>
