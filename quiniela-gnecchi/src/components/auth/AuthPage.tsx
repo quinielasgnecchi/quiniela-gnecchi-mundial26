@@ -32,8 +32,6 @@ export default function AuthPage() {
       } else {
         setMessage({ type: 'error', text: error.message || 'Ocurrió un error inesperado.' })
       }
-    } catch (err) {
-      console.error(err)
     } finally {
       setLoading(false)
     }
