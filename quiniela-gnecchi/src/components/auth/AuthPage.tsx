@@ -47,18 +47,19 @@ export default function AuthPage() {
         style={{ backgroundImage: `url(${wallpaper})` }}
       />
       
-      {/* Contenedor principal: Un 5% más ancho (max-w-[225px]) y un 15% más alto (py-8) */}
-      <div className="w-full max-w-[224px] px-4 py-10 rounded-[36px] bg-black border border-black relative z-10">
+      {/* Contenedor principal: Altura incrementada un 10% (py-[35px]) */}
+      <div className="w-full max-w-[225px] px-4 py-[35px] rounded-[36px] bg-black border border-black relative z-10">
         
-        {/* Cabecera con títulos del mismo tamaño, tipografía común y color #BCD100 */}
-        <div className="text-center mb-4">
-          <h1 className="tracking-tight leading-tight flex flex-col items-center text-[#BCD100]">
+        {/* Cabecera: Desplazada hacia arriba (-mt-2) y con margen inferior reducido (mb-2) */}
+        <div className="text-center -mt-2 mb-2">
+          {/* Títulos: Tamaño aumentado un 10% (text-[17.5px]) */}
+          <h1 className="tracking-tight leading-tight flex flex-col items-center text-[#BCD100] text-[17.5px]">
             {/* Renglón 1 */}
-            <span className="font-extrabold text-base uppercase">
+            <span className="font-extrabold uppercase">
               QUINIELA GNECCHI
             </span>
             {/* Renglón 2: Mundial 2026 juntos con la misma tipografía y tamaño */}
-            <span className="flex items-center gap-1 mt-0.5 font-black text-base filter drop-shadow-sm">
+            <span className="flex items-center gap-1 mt-0.5 font-black filter drop-shadow-sm">
               <span className="uppercase tracking-tighter">
                 MUNDIAL
               </span>
