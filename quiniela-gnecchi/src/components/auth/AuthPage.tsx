@@ -47,8 +47,8 @@ export default function AuthPage() {
         style={{ backgroundImage: `url(${wallpaper})` }}
       />
       
-      {/* Contenedor principal: Altura reducida un 10% (py-[115px]) manteniendo el ancho fijo en max-w-[225px] */}
-      <div className="w-full max-w-[225px] px-4 py-[115px] rounded-[36px] bg-black border border-black relative z-10">
+      {/* Contenedor principal: Altura reducida un 10% adicional (py-[103px]) manteniendo el ancho fijo en max-w-[225px] */}
+      <div className="w-full max-w-[225px] px-4 py-[103px] rounded-[36px] bg-black border border-black relative z-10">
         
         {/* Cabecera: Desplazada hacia arriba (-mt-2) y con margen inferior reducido (mb-2) */}
         <div className="text-center -mt-2 mb-2">
