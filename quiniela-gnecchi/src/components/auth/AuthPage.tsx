@@ -41,21 +41,19 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen text-white flex flex-col justify-center items-center px-4 relative overflow-hidden bg-[#0a0a0a]">
       
-      {/* Fondo de pantalla con efecto Bokeh al 70% importado dinámicamente */}
+      {/* Fondo de pantalla nítido (sin bokeh) con opacidad para visibilidad */}
       <div 
-        className="absolute inset-0 bg-cover bg-center filter blur-md opacity-30 pointer-events-none scale-105"
+        className="absolute inset-0 bg-cover bg-center opacity-60 pointer-events-none"
         style={{ backgroundImage: `url(${wallpaper})` }}
       />
       
-      {/* Efecto de luz ambiental mundialista secundario */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-gradient-to-tr from-[#009AFE]/10 to-[#01CB3B]/10 rounded-full blur-[80px] pointer-events-none" />
-
-      <div className="w-full max-w-md p-6 rounded-3xl bg-[#141414]/90 border border-[#1f1f1f] shadow-2xl relative z-10 backdrop-blur-md">
+      {/* Contenedor principal: Blanco con 80% de transparencia */}
+      <div className="w-full max-w-md p-6 rounded-3xl bg-white/80 border border-white/20 shadow-2xl relative z-10 backdrop-blur-md">
         
         {/* Cabecera con los Colores Oficiales del Mundial 2026 */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-black tracking-tight leading-tight flex flex-col items-center">
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-400 font-extrabold text-2xl">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-800 via-gray-700 to-gray-900 font-extrabold text-2xl">
               QUINIELA GNECCHI
             </span>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#01CB3B] via-[#E91E63] to-[#009AFE] font-black uppercase text-4xl mt-1 tracking-tighter filter drop-shadow-sm">
@@ -65,18 +63,18 @@ export default function AuthPage() {
               2026
             </span>
           </h1>
-          <p className="text-xs text-gray-400 mt-3 font-medium">
+          <p className="text-xs text-gray-700 mt-3 font-semibold">
             Introduce tus credenciales para acceder
           </p>
         </div>
 
         {message && (
-          <div className={`mb-5 p-4 rounded-xl text-xs font-medium text-center border ${
+          <div className={`mb-5 p-4 rounded-xl text-xs font-semibold text-center border ${
             message.type === 'success' 
-              ? 'bg-green-500/10 border-green-500/20 text-[#01CB3B]' 
+              ? 'bg-green-500/20 border-green-500/30 text-green-800' 
               : message.type === 'info'
-              ? 'bg-blue-500/10 border-blue-500/20 text-[#009AFE]'
-              : 'bg-red-500/10 border-red-500/20 text-red-400'
+              ? 'bg-blue-500/20 border-blue-500/30 text-blue-800'
+              : 'bg-red-500/20 border-red-500/30 text-red-800'
           }`}>
             {message.text}
           </div>
@@ -85,25 +83,25 @@ export default function AuthPage() {
         <form onSubmit={handleAuth} className="flex flex-col gap-4">
           
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Correo Electrónico</label>
+            <label className="text-[11px] font-bold text-gray-700 uppercase tracking-wider">Correo Electrónico</label>
             <input 
               type="email" 
               placeholder="tu@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-[#1a1a1a]/80 border border-[#262626] text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#009AFE] transition-colors"
+              className="w-full px-4 py-3 rounded-xl bg-white/90 border border-gray-300 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#009AFE] transition-colors"
               required
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Contraseña</label>
+            <label className="text-[11px] font-bold text-gray-700 uppercase tracking-wider">Contraseña</label>
             <input 
               type="password" 
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-[#1a1a1a]/80 border border-[#262626] text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#009AFE] transition-colors"
+              className="w-full px-4 py-3 rounded-xl bg-white/90 border border-gray-300 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#009AFE] transition-colors"
               required
             />
           </div>
