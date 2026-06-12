@@ -102,4 +102,21 @@ export default function AuthPage() {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-white/90 border border-gray-300 text-xs text-
+              className="w-full px-3 py-2 rounded-xl bg-white/90 border border-gray-300 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#009AFE] transition-colors"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full mt-1 py-2.5 rounded-xl bg-[#009AFE] hover:bg-[#0086dd] text-white font-bold text-xs transition-colors shadow-lg disabled:opacity-50"
+          >
+            {loading ? 'Procesando...' : 'Ingresar'}
+          </button>
+        </form>
+
+      </div>
+    </div>
+  )
+}
