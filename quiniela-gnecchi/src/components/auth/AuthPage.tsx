@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import wallpaper from '../../../wallpaper.jpg'
 
 export default function AuthPage() {
   const [email, setEmail] = useState('')
@@ -40,10 +41,10 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen text-white flex flex-col justify-center items-center px-4 relative overflow-hidden bg-[#0a0a0a]">
       
-      {/* Fondo de pantalla con efecto Bokeh al 70% */}
+      {/* Fondo de pantalla con efecto Bokeh al 70% importado dinámicamente */}
       <div 
         className="absolute inset-0 bg-cover bg-center filter blur-md opacity-30 pointer-events-none scale-105"
-        style={{ backgroundImage: "url('/wallpaper.jpg')" }}
+        style={{ backgroundImage: `url(${wallpaper})` }}
       />
       
       {/* Efecto de luz ambiental mundialista secundario */}
