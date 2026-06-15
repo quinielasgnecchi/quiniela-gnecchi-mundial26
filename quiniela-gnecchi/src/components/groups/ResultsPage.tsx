@@ -151,12 +151,18 @@ export default function ResultsPage() {
                     
                     {/* Bloque Local */}
                     <div className="p-2.5 rounded-xl bg-[#0d0d0d] border" style={{ borderColor: isFinished && match.result === 'home' ? '#00ca42' : '#1a1a1a' }}>
-                      <p className="text-xs font-bold mb-1 text-white flex items-center justify-between">
+                      <p className="text-xs font-bold mb-2 text-white flex items-center justify-between">
                         <span>Gana {match.home_team} ({homePredictors.length})</span>
                         {isFinished && match.result === 'home' && <span className="text-[10px] text-[#00ca42] font-black">✔ ACERTARON</span>}
                       </p>
                       {homePredictors.length > 0 ? (
-                        <p className="text-xs text-gray-400 leading-relaxed">{homePredictors.join(', ')}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {homePredictors.map((name, idx) => (
+                            <span key={idx} className="text-[11px] px-2 py-0.5 rounded-md bg-[#181818] border border-[#222] text-gray-300 whitespace-nowrap">
+                              {name}
+                            </span>
+                          ))}
+                        </div>
                       ) : (
                         <p className="text-xs text-gray-600 italic">Nadie eligió esta opción</p>
                       )}
@@ -164,12 +170,18 @@ export default function ResultsPage() {
 
                     {/* Bloque Empate */}
                     <div className="p-2.5 rounded-xl bg-[#0d0d0d] border" style={{ borderColor: isFinished && match.result === 'draw' ? '#00ca42' : '#1a1a1a' }}>
-                      <p className="text-xs font-bold mb-1 text-white flex items-center justify-between">
+                      <p className="text-xs font-bold mb-2 text-white flex items-center justify-between">
                         <span>Empate ({drawPredictors.length})</span>
                         {isFinished && match.result === 'draw' && <span className="text-[10px] text-[#00ca42] font-black">✔ ACERTARON</span>}
                       </p>
                       {drawPredictors.length > 0 ? (
-                        <p className="text-xs text-gray-400 leading-relaxed">{drawPredictors.join(', ')}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {drawPredictors.map((name, idx) => (
+                            <span key={idx} className="text-[11px] px-2 py-0.5 rounded-md bg-[#181818] border border-[#222] text-gray-300 whitespace-nowrap">
+                              {name}
+                            </span>
+                          ))}
+                        </div>
                       ) : (
                         <p className="text-xs text-gray-600 italic">Nadie eligió esta opción</p>
                       )}
@@ -177,12 +189,18 @@ export default function ResultsPage() {
 
                     {/* Bloque Visitante */}
                     <div className="p-2.5 rounded-xl bg-[#0d0d0d] border" style={{ borderColor: isFinished && match.result === 'away' ? '#00ca42' : '#1a1a1a' }}>
-                      <p className="text-xs font-bold mb-1 text-white flex items-center justify-between">
+                      <p className="text-xs font-bold mb-2 text-white flex items-center justify-between">
                         <span>Gana {match.away_team} ({awayPredictors.length})</span>
                         {isFinished && match.result === 'away' && <span className="text-[10px] text-[#00ca42] font-black">✔ ACERTARON</span>}
                       </p>
                       {awayPredictors.length > 0 ? (
-                        <p className="text-xs text-gray-400 leading-relaxed">{awayPredictors.join(', ')}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {awayPredictors.map((name, idx) => (
+                            <span key={idx} className="text-[11px] px-2 py-0.5 rounded-md bg-[#181818] border border-[#222] text-gray-300 whitespace-nowrap">
+                              {name}
+                            </span>
+                          ))}
+                        </div>
                       ) : (
                         <p className="text-xs text-gray-600 italic">Nadie eligió esta opción</p>
                       )}
