@@ -6,6 +6,7 @@ interface RankingUser {
   full_name: string
   avatar_url: string | null
   points: number
+  created_at: string
 }
 
 export default function RankingPage() {
@@ -17,17 +18,15 @@ export default function RankingPage() {
       try {
         setLoading(true)
         
-        // Consultamos los usuarios de tu tabla real 'profiles'
+        // Consultamos los usuarios incluyendo created_at para el desempate cronológico
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, full_name, email, avatar_url, points')
-          .order('points', { ascending: false })
+          .select('id, full_name, email, avatar_url, points, created_at')
 
         if (error) throw error
 
         if (data) {
           const formattedData = (data as any[]).map(user => {
-            // Plan de respaldo: Si full_name está vacío, extrae el nombre desde su email
             let displayName = user.full_name?.trim()
             if (!displayName && user.email) {
               displayName = user.email.split('@')[0]
@@ -40,14 +39,18 @@ export default function RankingPage() {
               id: user.id,
               full_name: displayName,
               avatar_url: user.avatar_url,
-              points: user.points ?? 0
+              points: user.points ?? 0,
+              created_at: user.created_at || ''
             }
           })
           
-          // Ordenar secundariamente por nombre si empatan en puntos (0 puntos al inicio)
+          // Ordenar principalmente por puntos (descendente) y secundariamente por fecha de creación (ascendente)
           formattedData.sort((a, b) => {
             if (b.points !== a.points) return b.points - a.points
-            return a.full_name.localeCompare(b.full_name)
+            
+            const dateA = new Date(a.created_at).getTime()
+            const dateB = new Date(b.created_at).getTime()
+            return dateA - dateB
           })
 
           setRanking(formattedData)
