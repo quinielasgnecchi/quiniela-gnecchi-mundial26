@@ -15,23 +15,37 @@ interface Participant {
   submitted: boolean
 }
 
+interface MatchScores {
+  home_score: number | null
+  away_score: number | null
+  result: 'home' | 'draw' | 'away' | null
+}
+
 export default function AdminPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [participants, setParticipants] = useState<Participant[]>([])
   const [phaseOpen, setPhaseOpen] = useState(false)
   const [phaseId, setPhaseId] = useState('')
-  const [results, setResults] = useState<Record<number, 'home' | 'draw' | 'away'>>({})
+  
+  // Guardamos goles y resultado por partido de forma integrada
+  const [scores, setScores] = useState<Record<number, MatchScores>>({})
   const [savingResults, setSavingResults] = useState(false)
   const [activeTab, setActiveTab] = useState<'participants' | 'results' | 'settings'>('participants')
   
-  // Estados para el control de la API en vivo
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState('')
 
   useEffect(() => {
-    if (user && user.role !== 'admin') navigate('/')
-    if (user?.role === 'admin') { fetchParticipants(); fetchPhase(); fetchSavedResults() }
+    if (!user) return
+    const isAuthorized = user.role === 'admin' || user.email?.toLowerCase() === 'jpgnecchi@hotmail.com'
+    if (!isAuthorized) {
+      navigate('/')
+      return
+    }
+    fetchParticipants()
+    fetchPhase()
+    fetchSavedResults()
   }, [user])
 
   async function fetchPhase() {
@@ -47,13 +61,17 @@ export default function AdminPage() {
   }
 
   async function fetchSavedResults() {
-    const { data } = await supabase.from('match_results').select('match_id, result')
+    const { data } = await supabase.from('match_results').select('match_id, home_score, away_score, result')
     if (data) {
-      const initialResults: Record<number, 'home' | 'draw' | 'away'> = {}
+      const initialScores: Record<number, MatchScores> = {}
       data.forEach(row => {
-        initialResults[row.match_id] = row.result as 'home' | 'draw' | 'away'
+        initialScores[row.match_id] = {
+          home_score: row.home_score !== null ? Number(row.home_score) : null,
+          away_score: row.away_score !== null ? Number(row.away_score) : null,
+          result: row.result as 'home' | 'draw' | 'away' | null
+        }
       })
-      setResults(initialResults)
+      setScores(initialScores)
     }
   }
 
@@ -67,23 +85,55 @@ export default function AdminPage() {
     setPhaseOpen(newVal)
   }
 
-  // Sincronización y cruce directo con la API externa
+  const handleScoreChange = (matchId: number, field: 'home_score' | 'away_score', value: string) => {
+    const parsed = value === '' ? null : Math.max(0, parseInt(value) || 0)
+    
+    setScores(prev => {
+      const current = prev[matchId] || { home_score: null, away_score: null, result: null }
+      const updated = { ...current, [field]: parsed }
+      
+      let computedResult: 'home' | 'draw' | 'away' | null = null
+      if (updated.home_score !== null && updated.away_score !== null) {
+        if (updated.home_score > updated.away_score) computedResult = 'home'
+        else if (updated.away_score > updated.home_score) computedResult = 'away'
+        else computedResult = 'draw'
+      }
+      
+      return { ...prev, [matchId]: { ...updated, result: computedResult } }
+    })
+  }
+
+  const adjustScore = (matchId: number, field: 'home_score' | 'away_score', delta: number) => {
+    setScores(prev => {
+      const current = prev[matchId] || { home_score: null, away_score: null, result: null }
+      const currentVal = current[field] ?? 0
+      const newVal = Math.max(0, currentVal + delta)
+      
+      const updated = { ...current, [field]: newVal }
+      let computedResult: 'home' | 'draw' | 'away' | null = null
+      if (updated.home_score !== null && updated.away_score !== null) {
+        if (updated.home_score > updated.away_score) computedResult = 'home'
+        else if (updated.away_score > updated.home_score) computedResult = 'away'
+        else computedResult = 'draw'
+      }
+      
+      return { ...prev, [matchId]: { ...updated, result: computedResult } }
+    })
+  }
+
   async function syncApiResults() {
     setSyncing(true)
     setSyncMessage('Conectando con football-data.org...')
     try {
       const apiMatches = await fetchLiveMatches()
-      
-      const { data: tusPartidos, error: errorPartidos } = await supabase
-        .from('matches')
-        .select('id, home_team, away_team')
+      const { data: tusPartidos, error: errorPartidos } = await supabase.from('matches').select('id, home_team, away_team')
 
       if (errorPartidos || !tusPartidos) {
         throw new Error('No se pudieron leer los partidos de Supabase')
       }
 
       let contadorActualizados = 0
-      const nuevasPrediccionesLocal: Record<number, 'home' | 'draw' | 'away'> = { ...results }
+      const nuevasScoresLocal = { ...scores }
 
       for (const apiMatch of apiMatches) {
         if (apiMatch.status === 'FINISHED') {
@@ -113,13 +163,17 @@ export default function AdminPage() {
                 recorded_at: new Date().toISOString()
               }, { onConflict: 'match_id' })
 
-            nuevasPrediccionesLocal[miPartido.id] = ganador
+            nuevasScoresLocal[miPartido.id] = {
+              home_score: golesCasa,
+              away_score: golesVisita,
+              result: ganador
+            }
             contadorActualizados++
           }
         }
       }
 
-      setResults(nuevasPrediccionesLocal)
+      setScores(nuevasScoresLocal)
       await supabase.rpc('recalculate_points')
       setSyncMessage(`🎉 Éxito: ${contadorActualizados} partidos actualizados y puntos recalculados.`)
     } catch (error: any) {
@@ -132,18 +186,29 @@ export default function AdminPage() {
 
   async function saveResults() {
     setSavingResults(true)
-    const rows = Object.entries(results).map(([matchId, result]) => ({
-      match_id: parseInt(matchId),
-      result,
-    }))
+    try {
+      const rows = Object.entries(scores)
+        .filter(([_, data]) => data.home_score !== null && data.away_score !== null && data.result !== null)
+        .map(([matchId, data]) => ({
+          match_id: parseInt(matchId),
+          home_score: data.home_score,
+          away_score: data.away_score,
+          result: data.result,
+          recorded_at: new Date().toISOString()
+        }))
 
-    for (const row of rows) {
-      await supabase.from('match_results').upsert(row, { onConflict: 'match_id' })
+      for (const row of rows) {
+        await supabase.from('match_results').upsert(row, { onConflict: 'match_id' })
+      }
+
+      await supabase.rpc('recalculate_points')
+      alert('Marcadores guardados y puntos recalculados correctamente ✅')
+    } catch (err) {
+      console.error(err)
+      alert('Ocurrió un error al guardar los marcadores.')
+    } finally {
+      setSavingResults(false)
     }
-
-    await supabase.rpc('recalculate_points')
-    setSavingResults(false)
-    alert('Resultados guardados y puntos actualizados ✅')
   }
 
   async function exportCSV() {
@@ -194,7 +259,7 @@ export default function AdminPage() {
               activeTab === tab ? 'bg-[#0299fc] text-white' : 'text-gray-500'
             }`}
           >
-            {tab === 'participants' ? '👥 Gente' : tab === 'results' ? '⚽ Resultados' : '⚙️ Config'}
+            {tab === 'participants' ? '👥 Gente' : tab === 'results' ? '⚽ Marcadores' : '⚙️ Config'}
           </button>
         ))}
       </div>
@@ -236,8 +301,8 @@ export default function AdminPage() {
 
       {activeTab === 'results' && (
         <div>
-          {/* Módulo Cruce de Datos API-Football-Data */}
-          <div className="mb-6 p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
+          {/* Módulo API */}
+          <div className="mb-5 p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Conexión API en Vivo</h3>
             <button
               onClick={syncApiResults}
@@ -255,47 +320,106 @@ export default function AdminPage() {
             )}
           </div>
 
-          <p className="text-sm text-gray-400 mb-4">Ingresa manualmente el resultado de cada partido o usa la sincronización externa.</p>
+          <p className="text-xs text-gray-400 mb-4 px-1">Modifica los goles con los botones + / - o escribiendo directamente. El ganador se calcula automáticamente.</p>
+          
           <div className="flex flex-col gap-3">
             {GROUP_MATCHES.map(match => {
-              const res = results[match.id]
+              const matchScores = scores[match.id] || { home_score: null, away_score: null, result: null }
               const hf = getTeamFlag(match.home_team)
               const af = getTeamFlag(match.away_team)
+              
               return (
-                <div key={match.id} className="bg-[#141414] border border-[#1f1f1f] rounded-2xl p-3">
-                  <p className="text-xs text-gray-500 mb-2">{match.match_date} · Grupo {match.group_name}</p>
-                  <div className="flex items-center gap-2 mb-2 text-sm">
-                    <span>{hf}</span>
-                    <span className="truncate flex-1">{match.home_team}</span>
-                    <span className="text-gray-600">vs</span>
-                    <span className="truncate flex-1 text-right">{match.away_team}</span>
-                    <span>{af}</span>
+                <div key={match.id} className="bg-[#141414] border border-[#1f1f1f] rounded-2xl p-3.5">
+                  <div className="flex justify-between items-center text-[11px] text-gray-500 mb-3">
+                    <span>{match.match_date}</span>
+                    <span className="bg-[#1f1f1f] px-2 py-0.5 rounded-md font-medium text-gray-400">Grupo {match.group_name}</span>
                   </div>
-                  <div className="flex gap-1.5">
-                    {(['home','draw','away'] as const).map(r => (
-                      <button
-                        key={r}
-                        onClick={() => setResults(prev => ({ ...prev, [match.id]: r }))}
-                        className={`flex-1 py-1.5 rounded-lg text-xs border transition-all ${
-                          res === r
-                            ? 'bg-[#0299fc] border-[#0299fc] text-white'
-                            : 'border-[#2a2a2a] text-gray-500'
-                        }`}
-                      >
-                        {r === 'home' ? `${hf} Gana` : r === 'draw' ? '🤝' : `${af} Gana`}
-                      </button>
-                    ))}
+                  
+                  {/* Selector e Input Móvil */}
+                  <div className="grid grid-cols-7 items-center gap-1 bg-[#0d0d0d] p-2.5 rounded-xl border border-[#1a1a1a]">
+                    
+                    {/* Local */}
+                    <div className="col-span-3 flex flex-col items-center gap-1.5 min-w-0">
+                      <div className="flex items-center gap-1 w-full justify-center px-1">
+                        <span className="text-base flex-shrink-0">{hf}</span>
+                        <span className="text-xs font-semibold truncate text-gray-200">{match.home_team}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button 
+                          onClick={() => adjustScore(match.id, 'home_score', -1)}
+                          className="w-7 h-7 bg-[#1c1c1c] rounded-lg text-sm active:bg-[#2a2a2a] flex items-center justify-center font-bold text-gray-400 border border-[#262626]"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          min="0"
+                          value={matchScores.home_score ?? ''}
+                          onChange={(e) => handleScoreChange(match.id, 'home_score', e.target.value)}
+                          className="w-10 h-7 bg-[#141414] border border-[#2a2a2a] rounded-lg text-center font-mono text-sm font-bold text-white focus:outline-none focus:border-[#0299fc]"
+                        />
+                        <button 
+                          onClick={() => adjustScore(match.id, 'home_score', 1)}
+                          className="w-7 h-7 bg-[#1c1c1c] rounded-lg text-sm active:bg-[#2a2a2a] flex items-center justify-center font-bold text-gray-400 border border-[#262626]"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* VS / Resultado Visual */}
+                    <div className="col-span-1 flex flex-col items-center justify-center">
+                      <span className="text-[10px] text-gray-600 font-bold tracking-wider uppercase">VS</span>
+                      {matchScores.result && (
+                        <span className="text-[10px] font-bold mt-1 text-[#0299fc] bg-[#0299fc]/10 px-1.5 py-0.5 rounded-md">
+                          {matchScores.result === 'home' ? 'L' : matchScores.result === 'away' ? 'V' : 'E'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Visitante */}
+                    <div className="col-span-3 flex flex-col items-center gap-1.5 min-w-0">
+                      <div className="flex items-center gap-1 w-full justify-center px-1">
+                        <span className="text-xs font-semibold truncate text-gray-200">{match.away_team}</span>
+                        <span className="text-base flex-shrink-0">{af}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button 
+                          onClick={() => adjustScore(match.id, 'away_score', -1)}
+                          className="w-7 h-7 bg-[#1c1c1c] rounded-lg text-sm active:bg-[#2a2a2a] flex items-center justify-center font-bold text-gray-400 border border-[#262626]"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          min="0"
+                          value={matchScores.away_score ?? ''}
+                          onChange={(e) => handleScoreChange(match.id, 'away_score', e.target.value)}
+                          className="w-10 h-7 bg-[#141414] border border-[#2a2a2a] rounded-lg text-center font-mono text-sm font-bold text-white focus:outline-none focus:border-[#0299fc]"
+                        />
+                        <button 
+                          onClick={() => adjustScore(match.id, 'away_score', 1)}
+                          className="w-7 h-7 bg-[#1c1c1c] rounded-lg text-sm active:bg-[#2a2a2a] flex items-center justify-center font-bold text-gray-400 border border-[#262626]"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
                   </div>
                 </div>
               )
             })}
           </div>
+          
           <button
-            className="w-full bg-[#0299fc] hover:bg-[#0286dd] text-white py-2.5 rounded-xl font-bold text-xs transition-colors mt-4"
+            className="w-full bg-[#0299fc] hover:bg-[#0286dd] active:bg-[#0275c2] text-white py-3.5 rounded-xl font-bold text-xs transition-colors mt-5 shadow-lg sticky bottom-4 z-10"
             onClick={saveResults}
-            disabled={savingResults || Object.keys(results).length === 0}
+            disabled={savingResults || Object.keys(scores).length === 0}
           >
-            {savingResults ? 'Calculando...' : '💾 Guardar resultados manuales y calcular puntos'}
+            {savingResults ? 'Guardando y Recalculando...' : '💾 Guardar Marcadores y Calcular Puntos'}
           </button>
         </div>
       )}
