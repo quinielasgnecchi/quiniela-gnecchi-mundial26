@@ -6,7 +6,7 @@ interface RankingUser {
   full_name: string
   avatar_url: string | null
   points: number
-  created_at: string
+  submitted_at: number // Guardamos el timestamp numérico para ordenar eficientemente
 }
 
 export default function RankingPage() {
@@ -18,15 +18,23 @@ export default function RankingPage() {
       try {
         setLoading(true)
         
-        // Consultamos los usuarios incluyendo created_at para el desempate cronológico
-        const { data, error } = await supabase
+        // 1. Consultar todos los perfiles de usuarios
+        const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, full_name, email, avatar_url, points, created_at')
+          .select('id, full_name, email, avatar_url, points')
 
-        if (error) throw error
+        if (profilesError) throw profilesError
 
-        if (data) {
-          const formattedData = (data as any[]).map(user => {
+        // 2. Consultar todos los envíos de la fase de grupos para obtener la fecha exacta de envío
+        const { data: submissionsData, error: submissionsError } = await supabase
+          .from('submissions')
+          .select('user_id, submitted_at')
+          .eq('phase', 'groups')
+
+        if (submissionsError) throw submissionsError
+
+        if (profilesData) {
+          const formattedData = (profilesData as any[]).map(user => {
             let displayName = user.full_name?.trim()
             if (!displayName && user.email) {
               displayName = user.email.split('@')[0]
@@ -35,22 +43,23 @@ export default function RankingPage() {
               displayName = 'Competidor'
             }
 
+            // Buscar si este usuario ya envió sus pronósticos
+            const userSub = submissionsData?.find(s => s.user_id === user.id)
+
             return {
               id: user.id,
               full_name: displayName,
               avatar_url: user.avatar_url,
               points: user.points ?? 0,
-              created_at: user.created_at || ''
+              // Si no tiene envío, colocamos Infinity para que se desempate al final
+              submitted_at: userSub?.submitted_at ? new Date(userSub.submitted_at).getTime() : Infinity
             }
           })
           
-          // Ordenar principalmente por puntos (descendente) y secundariamente por fecha de creación (ascendente)
+          // Ordenar principalmente por puntos (descendente) y secundariamente por fecha de envío (ascendente)
           formattedData.sort((a, b) => {
             if (b.points !== a.points) return b.points - a.points
-            
-            const dateA = new Date(a.created_at).getTime()
-            const dateB = new Date(b.created_at).getTime()
-            return dateA - dateB
+            return a.submitted_at - b.submitted_at
           })
 
           setRanking(formattedData)
