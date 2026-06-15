@@ -73,6 +73,9 @@ export default function RankingPage() {
     )
   }
 
+  // Encontrar el puntaje máximo global del ranking
+  const maxPoints = ranking.length > 0 ? Math.max(...ranking.map(p => p.points)) : 0
+
   return (
     <div className="px-4 pt-6 pb-[100px] min-h-screen bg-[#0a0a0a] text-white">
       {/* Cabecera */}
@@ -91,12 +94,14 @@ export default function RankingPage() {
         <div className="flex flex-col gap-3">
           {ranking.map((player, index) => {
             const position = index + 1
-            
-            // Estilos estéticos para el podio
+            // Es ganador si sus puntos igualan al puntaje máximo de la tabla
+            const isWinner = player.points === maxPoints
+
+            // Estilos estéticos: Dorado para ganadores, gris oscuro neutro para el resto
             let badgeStyle = "bg-[#1a1a1a] text-gray-400"
-            if (position === 1) badgeStyle = "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
-            if (position === 2) badgeStyle = "bg-gray-400/10 text-gray-300 border border-gray-400/20"
-            if (position === 3) badgeStyle = "bg-amber-700/10 text-amber-500 border border-amber-700/20"
+            if (isWinner) {
+              badgeStyle = "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
+            }
 
             return (
               <div 
@@ -134,9 +139,9 @@ export default function RankingPage() {
                     <span className="text-sm font-semibold text-gray-200 block truncate">
                       {player.full_name}
                     </span>
-                    {position <= 3 && (
-                      <span className="text-[10px] text-[#009AFE] font-medium tracking-wide uppercase">
-                        {position === 1 ? '👑 Líder' : '🔥 Podio'}
+                    {isWinner && (
+                      <span className="text-[10px] text-yellow-400 font-medium tracking-wide uppercase">
+                        🏆 Ganador
                       </span>
                     )}
                   </div>
