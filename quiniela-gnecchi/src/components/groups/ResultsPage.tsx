@@ -32,7 +32,6 @@ export default function ResultsPage() {
   const [expandedMatchId, setExpandedMatchId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Obtener el nombre exacto del usuario actual para comparar de forma segura
   const currentUserFullName = user?.full_name?.trim()
 
   useEffect(() => {
@@ -40,7 +39,6 @@ export default function ResultsPage() {
   }, [])
 
   async function fetchInitialData() {
-    // 1. Obtener Partidos completos
     const { data: matchesData } = await supabase
       .from('matches')
       .select('id, group_name, match_date, match_time, home_team, away_team, home_score, away_score, result')
@@ -48,7 +46,6 @@ export default function ResultsPage() {
 
     if (matchesData) setMatches(matchesData)
 
-    // 2. Obtener TODAS las predicciones rompiendo el límite de 1000 filas de Supabase
     let allPredictions: PredictionData[] = []
     let fromRange = 0
     let toRange = 999
@@ -70,7 +67,7 @@ export default function ResultsPage() {
     }
 
     setPredictions(allPredictions)
-    setLoading(false)
+    loading && setLoading(false)
   }
 
   const totalResults = matches.filter(m => m.result !== null).length
@@ -110,10 +107,8 @@ export default function ResultsPage() {
             const isFinished = match.result !== null
             const isExpanded = expandedMatchId === match.id
 
-            // Filtrar pronósticos específicos de este partido
             const matchPreds = predictions.filter(p => p.match_id === match.id)
             
-            // Mapear y ordenar alfabéticamente por idioma español
             const homePredictors = matchPreds
               .filter(p => p.prediction === 'home')
               .map(p => p.profiles?.full_name || 'Anónimo')
@@ -128,6 +123,17 @@ export default function ResultsPage() {
               .filter(p => p.prediction === 'away')
               .map(p => p.profiles?.full_name || 'Anónimo')
               .sort((a, b) => a.localeCompare('es', { sensitivity: 'base' }))
+
+            // Función auxiliar para determinar los estilos del usuario actual según su acierto/fallo
+            const getUserStyles = (currentBlockType: 'home' | 'draw' | 'away') => {
+              if (!isFinished) {
+                return 'bg-[#244ffe]/20 border-[#244ffe] text-white ring-1 ring-[#244ffe]/30'
+              }
+              const hit = match.result === currentBlockType
+              return hit 
+                ? 'bg-[#00ca42]/20 border-[#00ca42] text-white ring-1 ring-[#00ca42]/30' 
+                : 'bg-[#ff2e2e]/20 border-[#ff2e2e] text-white ring-1 ring-[#ff2e2e]/30'
+            }
 
             return (
               <div 
@@ -152,13 +158,11 @@ export default function ResultsPage() {
 
                 {/* Marcadores e Información de los equipos */}
                 <div className="flex items-center justify-between mt-3">
-                  {/* Local */}
                   <div className="flex flex-col items-center gap-1 w-24">
                     <span className="text-3xl">{hf}</span>
                     <span className="text-xs font-medium text-center text-white leading-tight">{match.home_team}</span>
                   </div>
 
-                  {/* Bloque Central del Marcador */}
                   <div className="flex flex-col items-center gap-1">
                     {isFinished && match.home_score !== null && match.away_score !== null ? (
                       <div className="text-2xl font-bold text-white px-3 py-1 rounded-xl bg-[#1f1f1f]">
@@ -171,14 +175,13 @@ export default function ResultsPage() {
                     )}
                   </div>
 
-                  {/* Visitante */}
                   <div className="flex flex-col items-center gap-1 w-24">
                     <span className="text-3xl">{af}</span>
                     <span className="text-xs font-medium text-center text-white leading-tight">{match.away_team}</span>
                   </div>
                 </div>
 
-                {/* Menú Desplegable de Pronósticos de Participantes */}
+                {/* Menú Desplegable de Pronósticos */}
                 {isExpanded && (
                   <div className="mt-4 pt-4 border-t border-[#1f1f1f] flex flex-col gap-3 text-left" onClick={(e) => e.stopPropagation()}>
                     <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Distribución de Pronósticos</p>
@@ -197,12 +200,10 @@ export default function ResultsPage() {
                               <span 
                                 key={idx} 
                                 className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap border font-medium ${
-                                  isMe 
-                                    ? 'bg-[#244ffe]/20 border-[#244ffe] text-white shadow-sm ring-1 ring-[#244ffe]/30' 
-                                    : 'bg-[#181818] border-[#222] text-gray-300'
+                                  isMe ? getUserStyles('home') : 'bg-[#181818] border-[#222] text-gray-300'
                                 }`}
                               >
-                                {name} {isMe && '⚽️'}
+                                {name}
                               </span>
                             )
                           })}
@@ -226,12 +227,10 @@ export default function ResultsPage() {
                               <span 
                                 key={idx} 
                                 className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap border font-medium ${
-                                  isMe 
-                                    ? 'bg-[#244ffe]/20 border-[#244ffe] text-white shadow-sm ring-1 ring-[#244ffe]/30' 
-                                    : 'bg-[#181818] border-[#222] text-gray-300'
+                                  isMe ? getUserStyles('draw') : 'bg-[#181818] border-[#222] text-gray-300'
                                 }`}
                               >
-                                {name} {isMe && '⚽️'}
+                                {name}
                               </span>
                             )
                           })}
@@ -255,12 +254,10 @@ export default function ResultsPage() {
                               <span 
                                 key={idx} 
                                 className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap border font-medium ${
-                                  isMe 
-                                    ? 'bg-[#244ffe]/20 border-[#244ffe] text-white shadow-sm ring-1 ring-[#244ffe]/30' 
-                                    : 'bg-[#181818] border-[#222] text-gray-300'
+                                  isMe ? getUserStyles('away') : 'bg-[#181818] border-[#222] text-gray-300'
                                 }`}
                               >
-                                {name} {isMe && '⚽️'}
+                                {name}
                               </span>
                             )
                           })}
