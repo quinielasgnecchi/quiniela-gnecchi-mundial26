@@ -203,6 +203,7 @@ export default function AdminPage() {
     setSavingResults(true)
     try {
       for (const [matchId, data] of Object.entries(scores)) {
+        // CORRECCIÓN: Comprobación estricta contra null para que admita el número 0 como marcador válido
         if (data.home_score !== null && data.away_score !== null && data.result !== null) {
           await supabase
             .from('matches')
@@ -270,7 +271,7 @@ export default function AdminPage() {
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
-              activeTab === tab ? 'bg-[#0299fc] text-white' : 'text-gray-500'
+              activeTab === tab ? 'bg-[#0299fc]' : 'text-gray-500'
             }`}
           >
             {tab === 'results' ? '⚽ Marcadores' : tab === 'participants' ? '👥 Participantes' : '⚙️ Config'}
