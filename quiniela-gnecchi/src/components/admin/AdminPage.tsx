@@ -62,28 +62,17 @@ export default function AdminPage() {
 
   async function fetchSavedResults() {
     const { data } = await supabase.from('match_results').select('match_id, home_score, away_score, result')
-    
-    // Inicializamos todos los partidos de la lista local con null (sin jugar / sin marcador)
-    const initialScores: Record<number, MatchScores> = {}
-    GROUP_MATCHES.forEach(match => {
-      initialScores[match.id] = {
-        home_score: null,
-        away_score: null,
-        result: null
-      }
-    })
-
-    // Si existen datos reales guardados en Supabase, los cargamos sobre el estado
     if (data) {
+      const initialScores: Record<number, MatchScores> = {}
       data.forEach(row => {
         initialScores[row.match_id] = {
           home_score: row.home_score !== null ? Number(row.home_score) : null,
           away_score: row.away_score !== null ? Number(row.away_score) : null,
-          result: (row.result as 'home' | 'draw' | 'away') || null
+          result: row.result as 'home' | 'draw' | 'away' | null
         }
       })
+      setScores(initialScores)
     }
-    setScores(initialScores)
   }
 
   async function togglePhase() {
@@ -97,21 +86,18 @@ export default function AdminPage() {
   }
 
   const handleScoreChange = (matchId: number, field: 'home_score' | 'away_score', value: string) => {
-    const parsed = value === '' ? 0 : Math.max(0, parseInt(value) || 0)
+    const parsed = value === '' ? null : Math.max(0, parseInt(value) || 0)
     
     setScores(prev => {
       const current = prev[matchId] || { home_score: null, away_score: null, result: null }
-      const updated = { 
-        ...current, 
-        [field]: parsed,
-        // Si el campo opuesto era null al escribir por primera vez, lo inicializamos en 0
-        ...(field === 'home_score' && current.away_score === null ? { away_score: 0 } : {}),
-        ...(field === 'away_score' && current.home_score === null ? { home_score: 0 } : {})
-      }
+      const updated = { ...current, [field]: parsed }
       
-      let computedResult: 'home' | 'draw' | 'away' = 'draw'
-      if ((updated.home_score ?? 0) > (updated.away_score ?? 0)) computedResult = 'home'
-      else if ((updated.away_score ?? 0) > (updated.home_score ?? 0)) computedResult = 'away'
+      let computedResult: 'home' | 'draw' | 'away' | null = null
+      if (updated.home_score !== null && updated.away_score !== null) {
+        if (updated.home_score > updated.away_score) computedResult = 'home'
+        else if (updated.away_score > updated.home_score) computedResult = 'away'
+        else computedResult = 'draw'
+      }
       
       return { ...prev, [matchId]: { ...updated, result: computedResult } }
     })
@@ -123,17 +109,13 @@ export default function AdminPage() {
       const currentVal = current[field] ?? 0
       const newVal = Math.max(0, currentVal + delta)
       
-      const updated = { 
-        ...current, 
-        [field]: newVal,
-        // Al interactuar con los botones +/- aseguramos que ambos dejen de ser null
-        ...(field === 'home_score' && current.away_score === null ? { away_score: 0 } : {}),
-        ...(field === 'away_score' && current.home_score === null ? { home_score: 0 } : {})
+      const updated = { ...current, [field]: newVal }
+      let computedResult: 'home' | 'draw' | 'away' | null = null
+      if (updated.home_score !== null && updated.away_score !== null) {
+        if (updated.home_score > updated.away_score) computedResult = 'home'
+        else if (updated.away_score > updated.home_score) computedResult = 'away'
+        else computedResult = 'draw'
       }
-
-      let computedResult: 'home' | 'draw' | 'away' = 'draw'
-      if ((updated.home_score ?? 0) > (updated.away_score ?? 0)) computedResult = 'home'
-      else if ((updated.away_score ?? 0) > (updated.home_score ?? 0)) computedResult = 'away'
       
       return { ...prev, [matchId]: { ...updated, result: computedResult } }
     })
@@ -205,21 +187,15 @@ export default function AdminPage() {
   async function saveResults() {
     setSavingResults(true)
     try {
-      // Filtrar y mapear ÚNICAMENTE los partidos que tengan un marcador válido ingresado
       const rows = Object.entries(scores)
         .filter(([_, data]) => data.home_score !== null && data.away_score !== null && data.result !== null)
         .map(([matchId, data]) => ({
           match_id: parseInt(matchId),
-          home_score: data.home_score as number,
-          away_score: data.away_score as number,
-          result: data.result as 'home' | 'draw' | 'away',
+          home_score: data.home_score,
+          away_score: data.away_score,
+          result: data.result,
           recorded_at: new Date().toISOString()
         }))
-
-      if (rows.length === 0) {
-        alert('No hay marcadores nuevos o modificados para guardar. ⚠️')
-        return
-      }
 
       for (const row of rows) {
         await supabase.from('match_results').upsert(row, { onConflict: 'match_id' })
@@ -235,7 +211,7 @@ export default function AdminPage() {
     }
   }
 
-  const exportCSV() {
+  async function exportCSV() {
     const rows = participants.map(p =>
       `${p.full_name},${p.email},${p.favorite_team ?? ''},${p.submitted ? 'Sí' : 'No'}`
     )
@@ -275,7 +251,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="flex bg-[#111] rounded-xl p-1 mb-5">
-        {显明_tabs: (['participants', 'results', 'settings'] as const).map(tab => (
+        {(['participants', 'results', 'settings'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -352,10 +328,6 @@ export default function AdminPage() {
               const hf = getTeamFlag(match.home_team)
               const af = getTeamFlag(match.away_team)
               
-              // Determinar si el partido ya tiene un valor asignado o si se muestra vacío/placeholder
-              const displayHome = matchScores.home_score !== null ? matchScores.home_score : ''
-              const displayAway = matchScores.away_score !== null ? matchScores.away_score : ''
-
               return (
                 <div key={match.id} className="bg-[#141414] border border-[#1f1f1f] rounded-2xl p-3.5">
                   <div className="flex justify-between items-center text-[11px] text-gray-500 mb-3">
@@ -381,9 +353,9 @@ export default function AdminPage() {
                         </button>
                         <input
                           type="number"
-                          placeholder="-"
+                          placeholder="0"
                           min="0"
-                          value={displayHome}
+                          value={matchScores.home_score ?? ''}
                           onChange={(e) => handleScoreChange(match.id, 'home_score', e.target.value)}
                           className="w-10 h-7 bg-[#141414] border border-[#2a2a2a] rounded-lg text-center font-mono text-sm font-bold text-white focus:outline-none focus:border-[#0299fc]"
                         />
@@ -421,9 +393,9 @@ export default function AdminPage() {
                         </button>
                         <input
                           type="number"
-                          placeholder="-"
+                          placeholder="0"
                           min="0"
-                          value={displayAway}
+                          value={matchScores.away_score ?? ''}
                           onChange={(e) => handleScoreChange(match.id, 'away_score', e.target.value)}
                           className="w-10 h-7 bg-[#141414] border border-[#2a2a2a] rounded-lg text-center font-mono text-sm font-bold text-white focus:outline-none focus:border-[#0299fc]"
                         />
