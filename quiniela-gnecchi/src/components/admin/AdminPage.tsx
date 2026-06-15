@@ -62,17 +62,28 @@ export default function AdminPage() {
 
   async function fetchSavedResults() {
     const { data } = await supabase.from('match_results').select('match_id, home_score, away_score, result')
+    
+    // Inicializamos todos los partidos de la lista local con 0-0 por defecto
+    const initialScores: Record<number, MatchScores> = {}
+    GROUP_MATCHES.forEach(match => {
+      initialScores[match.id] = {
+        home_score: 0,
+        away_score: 0,
+        result: 'draw'
+      }
+    })
+
+    // Si existen datos guardados en Supabase, sobreescribimos los valores por defecto
     if (data) {
-      const initialScores: Record<number, MatchScores> = {}
       data.forEach(row => {
         initialScores[row.match_id] = {
-          home_score: row.home_score !== null ? Number(row.home_score) : null,
-          away_score: row.away_score !== null ? Number(row.away_score) : null,
-          result: row.result as 'home' | 'draw' | 'away' | null
+          home_score: row.home_score !== null ? Number(row.home_score) : 0,
+          away_score: row.away_score !== null ? Number(row.away_score) : 0,
+          result: (row.result as 'home' | 'draw' | 'away') || 'draw'
         }
       })
-      setScores(initialScores)
     }
+    setScores(initialScores)
   }
 
   async function togglePhase() {
@@ -86,18 +97,15 @@ export default function AdminPage() {
   }
 
   const handleScoreChange = (matchId: number, field: 'home_score' | 'away_score', value: string) => {
-    const parsed = value === '' ? null : Math.max(0, parseInt(value) || 0)
+    const parsed = value === '' ? 0 : Math.max(0, parseInt(value) || 0)
     
     setScores(prev => {
-      const current = prev[matchId] || { home_score: null, away_score: null, result: null }
+      const current = prev[matchId] || { home_score: 0, away_score: 0, result: 'draw' }
       const updated = { ...current, [field]: parsed }
       
-      let computedResult: 'home' | 'draw' | 'away' | null = null
-      if (updated.home_score !== null && updated.away_score !== null) {
-        if (updated.home_score > updated.away_score) computedResult = 'home'
-        else if (updated.away_score > updated.home_score) computedResult = 'away'
-        else computedResult = 'draw'
-      }
+      let computedResult: 'home' | 'draw' | 'away' = 'draw'
+      if (updated.home_score > updated.away_score) computedResult = 'home'
+      else if (updated.away_score > updated.home_score) computedResult = 'away'
       
       return { ...prev, [matchId]: { ...updated, result: computedResult } }
     })
@@ -105,17 +113,14 @@ export default function AdminPage() {
 
   const adjustScore = (matchId: number, field: 'home_score' | 'away_score', delta: number) => {
     setScores(prev => {
-      const current = prev[matchId] || { home_score: null, away_score: null, result: null }
+      const current = prev[matchId] || { home_score: 0, away_score: 0, result: 'draw' }
       const currentVal = current[field] ?? 0
       const newVal = Math.max(0, currentVal + delta)
       
       const updated = { ...current, [field]: newVal }
-      let computedResult: 'home' | 'draw' | 'away' | null = null
-      if (updated.home_score !== null && updated.away_score !== null) {
-        if (updated.home_score > updated.away_score) computedResult = 'home'
-        else if (updated.away_score > updated.home_score) computedResult = 'away'
-        else computedResult = 'draw'
-      }
+      let computedResult: 'home' | 'draw' | 'away' = 'draw'
+      if (updated.home_score > updated.away_score) computedResult = 'home'
+      else if (updated.away_score > updated.home_score) computedResult = 'away'
       
       return { ...prev, [matchId]: { ...updated, result: computedResult } }
     })
@@ -187,15 +192,13 @@ export default function AdminPage() {
   async function saveResults() {
     setSavingResults(true)
     try {
-      const rows = Object.entries(scores)
-        .filter(([_, data]) => data.home_score !== null && data.away_score !== null && data.result !== null)
-        .map(([matchId, data]) => ({
-          match_id: parseInt(matchId),
-          home_score: data.home_score,
-          away_score: data.away_score,
-          result: data.result,
-          recorded_at: new Date().toISOString()
-        }))
+      const rows = Object.entries(scores).map(([matchId, data]) => ({
+        match_id: parseInt(matchId),
+        home_score: data.home_score ?? 0,
+        away_score: data.away_score ?? 0,
+        result: data.result ?? 'draw',
+        recorded_at: new Date().toISOString()
+      }))
 
       for (const row of rows) {
         await supabase.from('match_results').upsert(row, { onConflict: 'match_id' })
@@ -324,7 +327,7 @@ export default function AdminPage() {
           
           <div className="flex flex-col gap-3">
             {GROUP_MATCHES.map(match => {
-              const matchScores = scores[match.id] || { home_score: null, away_score: null, result: null }
+              const matchScores = scores[match.id] || { home_score: 0, away_score: 0, result: 'draw' }
               const hf = getTeamFlag(match.home_team)
               const af = getTeamFlag(match.away_team)
               
@@ -355,7 +358,7 @@ export default function AdminPage() {
                           type="number"
                           placeholder="0"
                           min="0"
-                          value={matchScores.home_score ?? ''}
+                          value={matchScores.home_score ?? 0}
                           onChange={(e) => handleScoreChange(match.id, 'home_score', e.target.value)}
                           className="w-10 h-7 bg-[#141414] border border-[#2a2a2a] rounded-lg text-center font-mono text-sm font-bold text-white focus:outline-none focus:border-[#0299fc]"
                         />
@@ -395,7 +398,7 @@ export default function AdminPage() {
                           type="number"
                           placeholder="0"
                           min="0"
-                          value={matchScores.away_score ?? ''}
+                          value={matchScores.away_score ?? 0}
                           onChange={(e) => handleScoreChange(match.id, 'away_score', e.target.value)}
                           className="w-10 h-7 bg-[#141414] border border-[#2a2a2a] rounded-lg text-center font-mono text-sm font-bold text-white focus:outline-none focus:border-[#0299fc]"
                         />
