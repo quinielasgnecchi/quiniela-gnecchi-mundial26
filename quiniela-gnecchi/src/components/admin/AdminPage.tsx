@@ -28,7 +28,7 @@ export default function AdminPage() {
   const [phaseOpen, setPhaseOpen] = useState(false)
   const [phaseId, setPhaseId] = useState('')
   
-  // Guardamos goles y resultado por partido de forma integrada
+  // Guardamos goles y resultado por partido usando el ID local de GROUP_MATCHES
   const [scores, setScores] = useState<Record<number, MatchScores>>({})
   const [savingResults, setSavingResults] = useState(false)
   const [activeTab, setActiveTab] = useState<'participants' | 'results' | 'settings'>('participants')
@@ -61,30 +61,52 @@ export default function AdminPage() {
   }
 
   async function fetchSavedResults() {
-    const { data } = await supabase.from('match_results').select('match_id, home_score, away_score, result')
-    
-    // 1. Inicializamos SIEMPRE todos los partidos de la lista local con null
+    // 1. Inicializamos todos los partidos locales en null vacíos
     const initialScores: Record<number, MatchScores> = {}
     GROUP_MATCHES.forEach(match => {
-      initialScores[match.id] = {
-        home_score: null,
-        away_score: null,
-        result: null
-      }
+      initialScores[match.id] = { home_score: null, away_score: null, result: null }
     })
 
-    // 2. Si existen datos reales guardados en Supabase, los sobreescribimos
-    if (data && data.length > 0) {
-      data.forEach(row => {
-        initialScores[row.match_id] = {
-          home_score: row.home_score !== null ? Number(row.home_score) : null,
-          away_score: row.away_score !== null ? Number(row.away_score) : null,
-          result: (row.result as 'home' | 'draw' | 'away') || null
-        }
-      })
+    try {
+      // 2. Traemos los resultados guardados junto con los nombres de los equipos de la tabla de partidos
+      const { data: savedData } = await supabase
+        .from('match_results')
+        .select(`
+          home_score,
+          away_score,
+          result,
+          matches (
+            home_team,
+            away_team
+          )
+        `)
+
+      // 3. Cruzamos por nombre de equipo para asegurar consistencia perfecta entre DB y archivo local
+      if (savedData && savedData.length > 0) {
+        savedData.forEach((row: any) => {
+          if (!row.matches) return
+          
+          const casaDB = row.matches.home_team.toLowerCase()
+          const visitaDB = row.matches.away_team.toLowerCase()
+
+          // Buscamos cuál es el ID local correspondiente en GROUP_MATCHES
+          const miPartidoLocal = GROUP_MATCHES.find(m => 
+            m.home_team.toLowerCase() === casaDB && m.away_team.toLowerCase() === visitaDB
+          )
+
+          if (miPartidoLocal) {
+            initialScores[miPartidoLocal.id] = {
+              home_score: row.home_score !== null ? Number(row.home_score) : null,
+              away_score: row.away_score !== null ? Number(row.away_score) : null,
+              result: row.result || null
+            }
+          }
+        })
+      }
+    } catch (err) {
+      console.error('Error cargando marcadores existentes:', err)
     }
-    
-    // 3. Seteamos el estado unificado pase lo que pase
+
     setScores(initialScores)
   }
 
@@ -176,10 +198,16 @@ export default function AdminPage() {
                 recorded_at: new Date().toISOString()
               }, { onConflict: 'match_id' })
 
-            nuevasScoresLocal[miPartido.id] = {
-              home_score: golesCasa,
-              away_score: golesVisita,
-              result: ganador
+            const miPartidoLocal = GROUP_MATCHES.find(m => 
+              m.home_team.toLowerCase() === miPartido.home_team.toLowerCase()
+            )
+            
+            if (miPartidoLocal) {
+              nuevasScoresLocal[miPartidoLocal.id] = {
+                home_score: golesCasa,
+                away_score: golesVisita,
+                result: ganador
+              }
             }
             contadorActualizados++
           }
@@ -200,15 +228,30 @@ export default function AdminPage() {
   async function saveResults() {
     setSavingResults(true)
     try {
+      // 1. Buscamos los IDs reales correspondientes en la tabla 'matches' de Supabase
+      const { data: tusPartidos } = await supabase.from('matches').select('id, home_team, away_team')
+      if (!tusPartidos) throw new Error('No se pudieron obtener los partidos remotos.')
+
       const rows = Object.entries(scores)
         .filter(([_, data]) => data.home_score !== null && data.away_score !== null && data.result !== null)
-        .map(([matchId, data]) => ({
-          match_id: parseInt(matchId),
-          home_score: data.home_score,
-          away_score: data.away_score,
-          result: data.result,
-          recorded_at: new Date().toISOString()
-        }))
+        .map(([matchId, data]) => {
+          const partidoLocal = GROUP_MATCHES.find(m => m.id === parseInt(matchId))
+          const partidoDB = tusPartidos.find(p => 
+            p.home_team.toLowerCase() === partidoLocal?.home_team.toLowerCase() &&
+            p.away_team.toLowerCase() === partidoLocal?.away_team.toLowerCase()
+          )
+
+          if (!partidoDB) return null
+
+          return {
+            match_id: partidoDB.id,
+            home_score: data.home_score,
+            away_score: data.away_score,
+            result: data.result,
+            recorded_at: new Date().toISOString()
+          }
+        })
+        .filter(Boolean) as any[]
 
       for (const row of rows) {
         await supabase.from('match_results').upsert(row, { onConflict: 'match_id' })
@@ -224,7 +267,7 @@ export default function AdminPage() {
     }
   }
 
-  async function exportCSV() {
+  const exportCSV = () => {
     const rows = participants.map(p =>
       `${p.full_name},${p.email},${p.favorite_team ?? ''},${p.submitted ? 'Sí' : 'No'}`
     )
