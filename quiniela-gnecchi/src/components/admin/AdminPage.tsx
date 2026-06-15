@@ -31,7 +31,9 @@ export default function AdminPage() {
   // Guardamos goles y resultado mapeados por el ID exacto del partido (1 al 72)
   const [scores, setScores] = useState<Record<number, MatchScores>>({})
   const [savingResults, setSavingResults] = useState(false)
-  const [activeTab, setActiveTab] = useState<'participants' | 'results' | 'settings'>('participants')
+  
+  // Modificado: Ahora la pestaña activa por defecto al entrar es la de marcadores
+  const [activeTab, setActiveTab] = useState<'results' | 'participants' | 'settings'>('results')
   
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState('')
@@ -167,7 +169,6 @@ export default function AdminPage() {
             if (golesCasa > golesVisita) ganador = 'home'
             if (golesVisita > golesCasa) ganador = 'away'
 
-            // Sincroniza directo en la tabla 'matches'
             await supabase
               .from('matches')
               .update({
@@ -201,7 +202,6 @@ export default function AdminPage() {
   async function saveResults() {
     setSavingResults(true)
     try {
-      // Recorremos los cambios locales y guardamos directo en la tabla 'matches' usando el ID correspondiente
       for (const [matchId, data] of Object.entries(scores)) {
         if (data.home_score !== null && data.away_score !== null && data.result !== null) {
           await supabase
@@ -215,7 +215,6 @@ export default function AdminPage() {
         }
       }
 
-      // Desencadena el recálculo automático de puntuaciones de los participantes
       await supabase.rpc('recalculate_points')
       alert('Marcadores guardados en la tabla oficial y puntos recalculados correctamente ✅')
     } catch (err) {
@@ -264,9 +263,9 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs modificados en orden y etiquetas */}
       <div className="flex bg-[#111] rounded-xl p-1 mb-5">
-        {(['participants', 'results', 'settings'] as const).map(tab => (
+        {(['results', 'participants', 'settings'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -274,7 +273,7 @@ export default function AdminPage() {
               activeTab === tab ? 'bg-[#0299fc] text-white' : 'text-gray-500'
             }`}
           >
-            {tab === 'participants' ? '👥 Gente' : tab === 'results' ? '⚽ Marcadores' : '⚙️ Config'}
+            {tab === 'results' ? '⚽ Marcadores' : tab === 'participants' ? '👥 Participantes' : '⚙️ Config'}
           </button>
         ))}
       </div>
