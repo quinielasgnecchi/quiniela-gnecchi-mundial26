@@ -20,41 +20,36 @@ export default function Dashboard() {
     if (!user) return
     async function fetchStats() {
       try {
-        // 1. Obtener todos los perfiles de la quiniela
+        // 1. Obtener todos los perfiles con su fecha de registro para computar la posición real exacta
         const { data: allProfiles } = await supabase
           .from('profiles')
-          .select('id, points')
+          .select('id, points, created_at')
 
-        // 2. Obtener TODAS las sumisiones para poder calcular las posiciones cruzando el desempate por envío
-        const { data: allSubmissions } = await supabase
+        // 2. Obtener la sumisión de grupos
+        const { data: sub } = await supabase
           .from('submissions')
-          .select('user_id, predictions_count, submitted_at')
+          .select('*')
+          .eq('user_id', user.id)
           .eq('phase', 'groups')
+          .maybeSingle()
 
         const currentProfile = allProfiles?.find(p => p.id === user.id)
-        const currentSub = allSubmissions?.find(s => s.user_id === user.id)
         const totalPoints = currentProfile?.points ?? 0
 
         let computedPosition = 1
-        if (allProfiles) {
-          // Mapeamos los perfiles integrando la fecha de envío de sus pronósticos
-          const profilesWithSubmissionTime = allProfiles.map(p => {
-            const sub = allSubmissions?.find(s => s.user_id === p.id)
-            return {
-              id: p.id,
-              points: p.points ?? 0,
-              // Si no ha enviado, se asigna una fecha en el futuro lejano para que quede al final del empate
-              submitted_at: sub?.submitted_at ? new Date(sub.submitted_at).getTime() : Infinity
-            }
+        if (allProfiles && currentProfile) {
+          // Ordenamos bajo la misma lógica oficial: 1. Puntos (desc), 2. Registro (asc)
+          const sorted = [...allProfiles].sort((a, b) => {
+            const pointsA = a.points ?? 0
+            const pointsB = b.points ?? 0
+            if (pointsB !== pointsA) return pointsB - pointsA
+            
+            const dateA = new Date(a.created_at || 0).getTime()
+            const dateB = new Date(b.created_at || 0).getTime()
+            return dateA - dateB
           })
 
-          // Ordenamos bajo la regla estricta: 1. Puntos (desc), 2. Fecha de Envío Pronósticos (asc)
-          profilesWithSubmissionTime.sort((a, b) => {
-            if (b.points !== a.points) return b.points - a.points
-            return a.submitted_at - b.submitted_at
-          })
-
-          const index = profilesWithSubmissionTime.findIndex(p => p.id === user.id)
+          const index = sorted.findIndex(p => p.id === user.id)
           if (index !== -1) {
             computedPosition = index + 1
           }
@@ -63,9 +58,9 @@ export default function Dashboard() {
         setStats({
           total_points: totalPoints,
           position: computedPosition,
-          done: currentSub?.predictions_count || 0,
-          submitted: !!currentSub,
-          date: currentSub?.submitted_at || '',
+          done: sub?.predictions_count || 0,
+          submitted: !!sub,
+          date: sub?.submitted_at || '',
         })
       } catch (e) {
         console.error(e)
