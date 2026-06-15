@@ -14,7 +14,7 @@ function CustomBottomNav() {
 
   const tabs = [
     { id: '/', label: 'Inicio', icon: '🏠' },
-    { id: '/resultados', label: 'Resultados', icon: '⚽' },
+    { id: '/resultados', label: 'Partidos', icon: '⚽' },
     { id: '/ranking', label: 'Ranking', icon: '🏆' },
     { id: '/perfil', label: 'Perfil', icon: '👤' }
   ]
