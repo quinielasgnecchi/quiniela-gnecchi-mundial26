@@ -28,7 +28,7 @@ export default function AdminPage() {
   const [phaseOpen, setPhaseOpen] = useState(false)
   const [phaseId, setPhaseId] = useState('')
   
-  // Guardamos goles y resultado por partido usando el ID local de GROUP_MATCHES
+  // Guardamos goles y resultado mapeados por el ID exacto del partido (1 al 72)
   const [scores, setScores] = useState<Record<number, MatchScores>>({})
   const [savingResults, setSavingResults] = useState(false)
   const [activeTab, setActiveTab] = useState<'participants' | 'results' | 'settings'>('participants')
@@ -61,45 +61,24 @@ export default function AdminPage() {
   }
 
   async function fetchSavedResults() {
-    // 1. Inicializamos todos los partidos locales en null vacíos
+    // 1. Inicializar el objeto con los partidos locales vacíos
     const initialScores: Record<number, MatchScores> = {}
     GROUP_MATCHES.forEach(match => {
       initialScores[match.id] = { home_score: null, away_score: null, result: null }
     })
 
     try {
-      // 2. Traemos los resultados guardados junto con los nombres de los equipos de la tabla de partidos
-      const { data: savedData } = await supabase
-        .from('match_results')
-        .select(`
-          home_score,
-          away_score,
-          result,
-          matches (
-            home_team,
-            away_team
-          )
-        `)
+      // 2. Traer los marcadores directamente de la tabla 'matches' (igual que tu vista de resultados)
+      const { data: matchesData } = await supabase
+        .from('matches')
+        .select('id, home_score, away_score, result')
 
-      // 3. Cruzamos por nombre de equipo para asegurar consistencia perfecta entre DB y archivo local
-      if (savedData && savedData.length > 0) {
-        savedData.forEach((row: any) => {
-          if (!row.matches) return
-          
-          const casaDB = row.matches.home_team.toLowerCase()
-          const visitaDB = row.matches.away_team.toLowerCase()
-
-          // Buscamos cuál es el ID local correspondiente en GROUP_MATCHES
-          const miPartidoLocal = GROUP_MATCHES.find(m => 
-            m.home_team.toLowerCase() === casaDB && m.away_team.toLowerCase() === visitaDB
-          )
-
-          if (miPartidoLocal) {
-            initialScores[miPartidoLocal.id] = {
-              home_score: row.home_score !== null ? Number(row.home_score) : null,
-              away_score: row.away_score !== null ? Number(row.away_score) : null,
-              result: row.result || null
-            }
+      if (matchesData) {
+        matchesData.forEach((row) => {
+          initialScores[row.id] = {
+            home_score: row.home_score !== null ? Number(row.home_score) : null,
+            away_score: row.away_score !== null ? Number(row.away_score) : null,
+            result: row.result || null
           }
         })
       }
@@ -188,26 +167,20 @@ export default function AdminPage() {
             if (golesCasa > golesVisita) ganador = 'home'
             if (golesVisita > golesCasa) ganador = 'away'
 
+            // Sincroniza directo en la tabla 'matches'
             await supabase
-              .from('match_results')
-              .upsert({
-                match_id: miPartido.id,
-                home_score: golesCasa,
-                away_score: golesVisita,
-                result: ganador,
-                recorded_at: new Date().toISOString()
-              }, { onConflict: 'match_id' })
-
-            const miPartidoLocal = GROUP_MATCHES.find(m => 
-              m.home_team.toLowerCase() === miPartido.home_team.toLowerCase()
-            )
-            
-            if (miPartidoLocal) {
-              nuevasScoresLocal[miPartidoLocal.id] = {
+              .from('matches')
+              .update({
                 home_score: golesCasa,
                 away_score: golesVisita,
                 result: ganador
-              }
+              })
+              .eq('id', miPartido.id)
+
+            nuevasScoresLocal[miPartido.id] = {
+              home_score: golesCasa,
+              away_score: golesVisita,
+              result: ganador
             }
             contadorActualizados++
           }
@@ -216,7 +189,7 @@ export default function AdminPage() {
 
       setScores(nuevasScoresLocal)
       await supabase.rpc('recalculate_points')
-      setSyncMessage(`🎉 Éxito: ${contadorActualizados} partidos actualizados y puntos recalculados.`)
+      setSyncMessage(`🎉 Éxito: ${contadorActualizados} partidos actualizados de la API y puntos recalculados.`)
     } catch (error: any) {
       console.error(error)
       setSyncMessage(`❌ Error: ${error.message || 'Error de conexión'}`)
@@ -228,37 +201,23 @@ export default function AdminPage() {
   async function saveResults() {
     setSavingResults(true)
     try {
-      // 1. Buscamos los IDs reales correspondientes en la tabla 'matches' de Supabase
-      const { data: tusPartidos } = await supabase.from('matches').select('id, home_team, away_team')
-      if (!tusPartidos) throw new Error('No se pudieron obtener los partidos remotos.')
-
-      const rows = Object.entries(scores)
-        .filter(([_, data]) => data.home_score !== null && data.away_score !== null && data.result !== null)
-        .map(([matchId, data]) => {
-          const partidoLocal = GROUP_MATCHES.find(m => m.id === parseInt(matchId))
-          const partidoDB = tusPartidos.find(p => 
-            p.home_team.toLowerCase() === partidoLocal?.home_team.toLowerCase() &&
-            p.away_team.toLowerCase() === partidoLocal?.away_team.toLowerCase()
-          )
-
-          if (!partidoDB) return null
-
-          return {
-            match_id: partidoDB.id,
-            home_score: data.home_score,
-            away_score: data.away_score,
-            result: data.result,
-            recorded_at: new Date().toISOString()
-          }
-        })
-        .filter(Boolean) as any[]
-
-      for (const row of rows) {
-        await supabase.from('match_results').upsert(row, { onConflict: 'match_id' })
+      // Recorremos los cambios locales y guardamos directo en la tabla 'matches' usando el ID correspondiente
+      for (const [matchId, data] of Object.entries(scores)) {
+        if (data.home_score !== null && data.away_score !== null && data.result !== null) {
+          await supabase
+            .from('matches')
+            .update({
+              home_score: data.home_score,
+              away_score: data.away_score,
+              result: data.result
+            })
+            .eq('id', parseInt(matchId))
+        }
       }
 
+      // Desencadena el recálculo automático de puntuaciones de los participantes
       await supabase.rpc('recalculate_points')
-      alert('Marcadores guardados y puntos recalculados correctamente ✅')
+      alert('Marcadores guardados en la tabla oficial y puntos recalculados correctamente ✅')
     } catch (err) {
       console.error(err)
       alert('Ocurrió un error al guardar los marcadores.')
@@ -376,7 +335,7 @@ export default function AdminPage() {
             )}
           </div>
 
-          <p className="text-xs text-gray-400 mb-4 px-1">Modifica los goles con los botones + / - o escribiendo directamente. El ganador se calcula automáticamente.</p>
+          <p className="text-xs text-gray-400 mb-4 px-1">Modifica los goles con los botones + / - o escribiendo directamente. El ganador se calcula automáticamente en base a tu base de datos central.</p>
           
           <div className="flex flex-col gap-3">
             {GROUP_MATCHES.map(match => {
@@ -387,7 +346,7 @@ export default function AdminPage() {
               return (
                 <div key={match.id} className="bg-[#141414] border border-[#1f1f1f] rounded-2xl p-3.5">
                   <div className="flex justify-between items-center text-[11px] text-gray-500 mb-3">
-                    <span>{match.match_date}</span>
+                    <span className="text-[#0299fc] font-bold">PARTIDO #{match.id}</span>
                     <span className="bg-[#1f1f1f] px-2 py-0.5 rounded-md font-medium text-gray-400">Grupo {match.group_name}</span>
                   </div>
                   
@@ -473,7 +432,7 @@ export default function AdminPage() {
           <button
             className="w-full bg-[#0299fc] hover:bg-[#0286dd] active:bg-[#0275c2] text-white py-3.5 rounded-xl font-bold text-xs transition-colors mt-5 shadow-lg sticky bottom-4 z-10"
             onClick={saveResults}
-            disabled={savingResults || Object.keys(scores).length === 0}
+            disabled={savingResults}
           >
             {savingResults ? 'Guardando y Recalculando...' : '💾 Guardar Marcadores y Calcular Puntos'}
           </button>
