@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../hooks/useAuth'
 import { getTeamFlag } from '../../types'
 
 interface MatchData {
@@ -25,10 +26,14 @@ interface PredictionData {
 
 export default function ResultsPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [matches, setMatches] = useState<MatchData[]>([])
   const [predictions, setPredictions] = useState<PredictionData[]>([])
   const [expandedMatchId, setExpandedMatchId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Obtener el nombre exacto del usuario actual para comparar de forma segura
+  const currentUserFullName = user?.full_name?.trim()
 
   useEffect(() => {
     fetchInitialData()
@@ -186,11 +191,21 @@ export default function ResultsPage() {
                       </p>
                       {homePredictors.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
-                          {homePredictors.map((name, idx) => (
-                            <span key={idx} className="text-[11px] px-2 py-0.5 rounded-md bg-[#181818] border border-[#222] text-gray-300 whitespace-nowrap">
-                              {name}
-                            </span>
-                          ))}
+                          {homePredictors.map((name, idx) => {
+                            const isMe = name === currentUserFullName
+                            return (
+                              <span 
+                                key={idx} 
+                                className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap border font-medium ${
+                                  isMe 
+                                    ? 'bg-[#244ffe]/20 border-[#244ffe] text-white shadow-sm ring-1 ring-[#244ffe]/30' 
+                                    : 'bg-[#181818] border-[#222] text-gray-300'
+                                }`}
+                              >
+                                {name} {isMe && '⚽️'}
+                              </span>
+                            )
+                          })}
                         </div>
                       ) : (
                         <p className="text-xs text-gray-600 italic">Nadie eligió esta opción</p>
@@ -205,11 +220,21 @@ export default function ResultsPage() {
                       </p>
                       {drawPredictors.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
-                          {drawPredictors.map((name, idx) => (
-                            <span key={idx} className="text-[11px] px-2 py-0.5 rounded-md bg-[#181818] border border-[#222] text-gray-300 whitespace-nowrap">
-                              {name}
-                            </span>
-                          ))}
+                          {drawPredictors.map((name, idx) => {
+                            const isMe = name === currentUserFullName
+                            return (
+                              <span 
+                                key={idx} 
+                                className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap border font-medium ${
+                                  isMe 
+                                    ? 'bg-[#244ffe]/20 border-[#244ffe] text-white shadow-sm ring-1 ring-[#244ffe]/30' 
+                                    : 'bg-[#181818] border-[#222] text-gray-300'
+                                }`}
+                              >
+                                {name} {isMe && '⚽️'}
+                              </span>
+                            )
+                          })}
                         </div>
                       ) : (
                         <p className="text-xs text-gray-600 italic">Nadie eligió esta opción</p>
@@ -224,11 +249,21 @@ export default function ResultsPage() {
                       </p>
                       {awayPredictors.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
-                          {awayPredictors.map((name, idx) => (
-                            <span key={idx} className="text-[11px] px-2 py-0.5 rounded-md bg-[#181818] border border-[#222] text-gray-300 whitespace-nowrap">
-                              {name}
-                            </span>
-                          ))}
+                          {awayPredictors.map((name, idx) => {
+                            const isMe = name === currentUserFullName
+                            return (
+                              <span 
+                                key={idx} 
+                                className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap border font-medium ${
+                                  isMe 
+                                    ? 'bg-[#244ffe]/20 border-[#244ffe] text-white shadow-sm ring-1 ring-[#244ffe]/30' 
+                                    : 'bg-[#181818] border-[#222] text-gray-300'
+                                }`}
+                              >
+                                {name} {isMe && '⚽️'}
+                              </span>
+                            )
+                          })}
                         </div>
                       ) : (
                         <p className="text-xs text-gray-600 italic">Nadie eligió esta opción</p>
