@@ -35,19 +35,36 @@ export default function ResultsPage() {
   }, [])
 
   async function fetchInitialData() {
-    // 1. Obtener Partidos
+    // 1. Obtener Partidos completos
     const { data: matchesData } = await supabase
       .from('matches')
       .select('id, group_name, match_date, match_time, home_team, away_team, home_score, away_score, result')
       .order('id', { ascending: true })
 
-    // 2. Obtener Pronósticos con los nombres reales de los perfiles
-    const { data: predsData } = await supabase
-      .from('predictions')
-      .select('match_id, prediction, profiles ( full_name )')
-
     if (matchesData) setMatches(matchesData)
-    if (predsData) setPredictions(predsData as unknown as PredictionData[])
+
+    // 2. Obtener TODAS las predicciones rompiendo el límite de 1000 filas de Supabase
+    let allPredictions: PredictionData[] = []
+    let fromRange = 0
+    let toRange = 999
+    let hasMore = true
+
+    while (hasMore) {
+      const { data: predsChunk } = await supabase
+        .from('predictions')
+        .select('match_id, prediction, profiles ( full_name )')
+        .range(fromRange, toRange)
+
+      if (predsChunk && predsChunk.length > 0) {
+        allPredictions = [...allPredictions, ...(predsChunk as unknown as PredictionData[])]
+        fromRange += 1000
+        toRange += 1000
+      } else {
+        hasMore = false
+      }
+    }
+
+    setPredictions(allPredictions)
     setLoading(false)
   }
 
