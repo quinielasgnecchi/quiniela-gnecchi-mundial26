@@ -14,7 +14,7 @@ function CustomBottomNav() {
 
   const tabs = [
     { id: '/', label: 'Inicio', icon: '🏠' },
-    { id: '/resultados', label: 'Partidos', icon: '⚽' },
+    { id: '/resultados', label: 'Resultados', icon: '⚽' },
     { id: '/ranking', label: 'Ranking', icon: '🏆' },
     { id: '/perfil', label: 'Perfil', icon: '👤' }
   ]
@@ -40,7 +40,6 @@ function CustomBottomNav() {
   )
 }
 
-disable-line
 function AppRoutes() {
   const { user, loading } = useAuth()
 
