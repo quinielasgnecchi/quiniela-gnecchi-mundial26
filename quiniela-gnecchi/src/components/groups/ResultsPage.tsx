@@ -108,9 +108,21 @@ export default function ResultsPage() {
             // Filtrar pronósticos específicos de este partido
             const matchPreds = predictions.filter(p => p.match_id === match.id)
             
-            const homePredictors = matchPreds.filter(p => p.prediction === 'home').map(p => p.profiles?.full_name || 'Anónimo')
-            const drawPredictors = matchPreds.filter(p => p.prediction === 'draw').map(p => p.profiles?.full_name || 'Anónimo')
-            const awayPredictors = matchPreds.filter(p => p.prediction === 'away').map(p => p.profiles?.full_name || 'Anónimo')
+            // Mapear y ordenar alfabéticamente por idioma español
+            const homePredictors = matchPreds
+              .filter(p => p.prediction === 'home')
+              .map(p => p.profiles?.full_name || 'Anónimo')
+              .sort((a, b) => a.localeCompare('es', { sensitivity: 'base' }))
+
+            const drawPredictors = matchPreds
+              .filter(p => p.prediction === 'draw')
+              .map(p => p.profiles?.full_name || 'Anónimo')
+              .sort((a, b) => a.localeCompare('es', { sensitivity: 'base' }))
+
+            const awayPredictors = matchPreds
+              .filter(p => p.prediction === 'away')
+              .map(p => p.profiles?.full_name || 'Anónimo')
+              .sort((a, b) => a.localeCompare('es', { sensitivity: 'base' }))
 
             return (
               <div 
