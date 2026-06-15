@@ -38,7 +38,7 @@ export default function Dashboard() {
 
         let computedPosition = 1
         if (allProfiles && currentProfile) {
-          // Ordenamos bajo la misma lógica oficial: 1. Puntos (desc), 2. Registro (asc)
+          // Ordenamos bajo la misma lógica oficial: 1. Puntos (desc), 2. Registro/Creado (asc)
           const sorted = [...allProfiles].sort((a, b) => {
             const pointsA = a.points ?? 0
             const pointsB = b.points ?? 0
@@ -49,10 +49,14 @@ export default function Dashboard() {
             return dateA - dateB
           })
 
-          const index = sorted.findIndex(p => p.id === user.id)
-          if (index !== -1) {
-            computedPosition = index + 1
-          }
+          // Determinamos el orden único de puntajes descendentes para calcular la posición real consecutiva
+          const distinctScores = Array.from(new Set(sorted.map(p => p.points ?? 0))).sort((a, b) => b - a)
+          const scoreToPositionMap: Record<number, number> = {}
+          distinctScores.forEach((score, index) => {
+            scoreToPositionMap[score] = index + 1
+          })
+
+          computedPosition = scoreToPositionMap[totalPoints] || 1
         }
 
         setStats({
