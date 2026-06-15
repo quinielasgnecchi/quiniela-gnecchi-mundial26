@@ -53,8 +53,8 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      {/* Listado secuencial de partidos */}
-      <div className="px-4 pt-4 pb-10 max-w-md mx-auto flex flex-col gap-3">
+      {/* Listado secuencial de partidos: pb-32 asegura espacio extra al final del scroll */}
+      <div className="px-4 pt-4 pb-32 max-w-md mx-auto flex flex-col gap-3">
         {loading ? (
           [...Array(6)].map((_, i) => <div key={i} className="h-24 rounded-2xl animate-pulse" style={{background:'#141414'}} />)
         ) : (
