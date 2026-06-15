@@ -20,13 +20,44 @@ export default function Dashboard() {
     if (!user) return
     async function fetchStats() {
       try {
-        const { data: prof } = await supabase.from('profiles').select('points').eq('id', user.id).maybeSingle()
-        const { count: pos } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).gt('points', prof?.points || 0)
-        const { data: sub } = await supabase.from('submissions').select('*').eq('user_id', user.id).eq('phase', 'groups').maybeSingle()
+        // 1. Obtener todos los perfiles con su fecha de registro para computar la posición real exacta
+        const { data: allProfiles } = await supabase
+          .from('profiles')
+          .select('id, points, created_at')
+
+        // 2. Obtener la sumisión de grupos
+        const { data: sub } = await supabase
+          .from('submissions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('phase', 'groups')
+          .maybeSingle()
+
+        const currentProfile = allProfiles?.find(p => p.id === user.id)
+        const totalPoints = currentProfile?.points ?? 0
+
+        let computedPosition = 1
+        if (allProfiles && currentProfile) {
+          // Ordenamos bajo la misma lógica oficial: 1. Puntos (desc), 2. Registro (asc)
+          const sorted = [...allProfiles].sort((a, b) => {
+            const pointsA = a.points ?? 0
+            const pointsB = b.points ?? 0
+            if (pointsB !== pointsA) return pointsB - pointsA
+            
+            const dateA = new Date(a.created_at || 0).getTime()
+            const dateB = new Date(b.created_at || 0).getTime()
+            return dateA - dateB
+          })
+
+          const index = sorted.findIndex(p => p.id === user.id)
+          if (index !== -1) {
+            computedPosition = index + 1
+          }
+        }
 
         setStats({
-          total_points: prof?.points || 0,
-          position: prof ? (pos ?? 0) + 1 : 1,
+          total_points: totalPoints,
+          position: computedPosition,
           done: sub?.predictions_count || 0,
           submitted: !!sub,
           date: sub?.submitted_at || '',
@@ -34,7 +65,7 @@ export default function Dashboard() {
       } catch (e) {
         console.error(e)
       } finally {
-        setLoading(false)
+        loading && setLoading(false)
       }
     }
     fetchStats()
