@@ -62,17 +62,30 @@ export default function AdminPage() {
 
   async function fetchSavedResults() {
     const { data } = await supabase.from('match_results').select('match_id, home_score, away_score, result')
-    if (data) {
-      const initialScores: Record<number, MatchScores> = {}
+    
+    // 1. Inicializamos SIEMPRE todos los partidos de la lista local con null
+    const initialScores: Record<number, MatchScores> = {}
+    GROUP_MATCHES.forEach(match => {
+      initialScores[match.id] = {
+        home_score: null,
+        away_score: null,
+        result: null
+      }
+    })
+
+    // 2. Si existen datos reales guardados en Supabase, los sobreescribimos
+    if (data && data.length > 0) {
       data.forEach(row => {
         initialScores[row.match_id] = {
           home_score: row.home_score !== null ? Number(row.home_score) : null,
           away_score: row.away_score !== null ? Number(row.away_score) : null,
-          result: row.result as 'home' | 'draw' | 'away' | null
+          result: (row.result as 'home' | 'draw' | 'away') || null
         }
       })
-      setScores(initialScores)
     }
+    
+    // 3. Seteamos el estado unificado pase lo que pase
+    setScores(initialScores)
   }
 
   async function togglePhase() {
