@@ -15,28 +15,47 @@ interface MatchData {
   result: string | null
 }
 
+interface PredictionData {
+  match_id: number
+  prediction: 'home' | 'draw' | 'away'
+  profiles: {
+    full_name: string
+  } | null
+}
+
 export default function ResultsPage() {
   const navigate = useNavigate()
   const [matches, setMatches] = useState<MatchData[]>([])
+  const [predictions, setPredictions] = useState<PredictionData[]>([])
+  const [expandedMatchId, setExpandedMatchId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchMatchesFromDb()
+    fetchInitialData()
   }, [])
 
-  async function fetchMatchesFromDb() {
-    const { data } = await supabase
+  async function fetchInitialData() {
+    // 1. Obtener Partidos
+    const { data: matchesData } = await supabase
       .from('matches')
       .select('id, group_name, match_date, match_time, home_team, away_team, home_score, away_score, result')
       .order('id', { ascending: true })
 
-    if (data) {
-      setMatches(data)
-    }
+    // 2. Obtener Pronósticos con los nombres reales de los perfiles
+    const { data: predsData } = await supabase
+      .from('predictions')
+      .select('match_id, prediction, profiles ( full_name )')
+
+    if (matchesData) setMatches(matchesData)
+    if (predsData) setPredictions(predsData as unknown as PredictionData[])
     setLoading(false)
   }
 
   const totalResults = matches.filter(m => m.result !== null).length
+
+  const toggleExpand = (matchId: number) => {
+    setExpandedMatchId(expandedMatchId === matchId ? null : matchId)
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
@@ -53,7 +72,7 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      {/* Listado secuencial de partidos: pb-32 asegura espacio extra al final del scroll */}
+      {/* Listado secuencial de partidos */}
       <div className="px-4 pt-4 pb-32 max-w-md mx-auto flex flex-col gap-3">
         {loading ? (
           [...Array(6)].map((_, i) => <div key={i} className="h-24 rounded-2xl animate-pulse" style={{background:'#141414'}} />)
@@ -65,22 +84,36 @@ export default function ResultsPage() {
               weekday:'short', day:'numeric', month:'short'
             })
 
-            // Remueve los segundos (ej: "20:00:00" -> "20:00") si existen en el valor de la base de datos
             const formattedTime = match.match_time ? match.match_time.slice(0, 5) : ''
-
             const isFinished = match.result !== null
+            const isExpanded = expandedMatchId === match.id
+
+            // Filtrar pronósticos específicos de este partido
+            const matchPreds = predictions.filter(p => p.match_id === match.id)
+            
+            const homePredictors = matchPreds.filter(p => p.prediction === 'home').map(p => p.profiles?.full_name || 'Anónimo')
+            const drawPredictors = matchPreds.filter(p => p.prediction === 'draw').map(p => p.profiles?.full_name || 'Anónimo')
+            const awayPredictors = matchPreds.filter(p => p.prediction === 'away').map(p => p.profiles?.full_name || 'Anónimo')
 
             return (
-              <div key={match.id} className="p-4 rounded-2xl" style={{
-                background:'#141414',
-                border:`1px solid ${isFinished ? 'rgba(0,202,66,0.2)' : '#1f1f1f'}`
-              }}>
+              <div 
+                key={match.id} 
+                onClick={() => toggleExpand(match.id)}
+                className="p-4 rounded-2xl cursor-pointer transition-all active:scale-[0.99]" 
+                style={{
+                  background: '#141414',
+                  border: `1px solid ${isFinished ? 'rgba(0,202,66,0.2)' : '#1f1f1f'}`
+                }}
+              >
                 {/* ID del Partido y Fecha */}
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-xs font-semibold" style={{color:'#244ffe'}}>
                     PARTIDO #{match.id} <span className="text-gray-600 font-normal">· {match.group_name}</span>
                   </p>
-                  <p className="text-xs" style={{color:'#555'}}>{dateStr} · {formattedTime}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs" style={{color:'#555'}}>{dateStr} · {formattedTime}</p>
+                    <span className="text-gray-600 text-xs transition-transform duration-200" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+                  </div>
                 </div>
 
                 {/* Marcadores e Información de los equipos */}
@@ -110,6 +143,52 @@ export default function ResultsPage() {
                     <span className="text-xs font-medium text-center text-white leading-tight">{match.away_team}</span>
                   </div>
                 </div>
+
+                {/* Menú Desplegable de Pronósticos de Participantes */}
+                {isExpanded && (
+                  <div className="mt-4 pt-4 border-t border-[#1f1f1f] flex flex-col gap-3 text-left" onClick={(e) => e.stopPropagation()}>
+                    <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Distribución de Pronósticos</p>
+                    
+                    {/* Bloque Local */}
+                    <div className="p-2.5 rounded-xl bg-[#0d0d0d] border" style={{ borderColor: isFinished && match.result === 'home' ? '#00ca42' : '#1a1a1a' }}>
+                      <p className="text-xs font-bold mb-1 text-white flex items-center justify-between">
+                        <span>Gana {match.home_team} ({homePredictors.length})</span>
+                        {isFinished && match.result === 'home' && <span className="text-[10px] text-[#00ca42] font-black">✔ ACERTARON</span>}
+                      </p>
+                      {homePredictors.length > 0 ? (
+                        <p className="text-xs text-gray-400 leading-relaxed">{homePredictors.join(', ')}</p>
+                      ) : (
+                        <p className="text-xs text-gray-600 italic">Nadie eligió esta opción</p>
+                      )}
+                    </div>
+
+                    {/* Bloque Empate */}
+                    <div className="p-2.5 rounded-xl bg-[#0d0d0d] border" style={{ borderColor: isFinished && match.result === 'draw' ? '#00ca42' : '#1a1a1a' }}>
+                      <p className="text-xs font-bold mb-1 text-white flex items-center justify-between">
+                        <span>Empate ({drawPredictors.length})</span>
+                        {isFinished && match.result === 'draw' && <span className="text-[10px] text-[#00ca42] font-black">✔ ACERTARON</span>}
+                      </p>
+                      {drawPredictors.length > 0 ? (
+                        <p className="text-xs text-gray-400 leading-relaxed">{drawPredictors.join(', ')}</p>
+                      ) : (
+                        <p className="text-xs text-gray-600 italic">Nadie eligió esta opción</p>
+                      )}
+                    </div>
+
+                    {/* Bloque Visitante */}
+                    <div className="p-2.5 rounded-xl bg-[#0d0d0d] border" style={{ borderColor: isFinished && match.result === 'away' ? '#00ca42' : '#1a1a1a' }}>
+                      <p className="text-xs font-bold mb-1 text-white flex items-center justify-between">
+                        <span>Gana {match.away_team} ({awayPredictors.length})</span>
+                        {isFinished && match.result === 'away' && <span className="text-[10px] text-[#00ca42] font-black">✔ ACERTARON</span>}
+                      </p>
+                      {awayPredictors.length > 0 ? (
+                        <p className="text-xs text-gray-400 leading-relaxed">{awayPredictors.join(', ')}</p>
+                      ) : (
+                        <p className="text-xs text-gray-600 italic">Nadie eligió esta opción</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })
