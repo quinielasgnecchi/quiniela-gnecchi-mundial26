@@ -65,6 +65,9 @@ export default function ResultsPage() {
               weekday:'short', day:'numeric', month:'short'
             })
 
+            // Remueve los segundos (ej: "20:00:00" -> "20:00") si existen en el valor de la base de datos
+            const formattedTime = match.match_time ? match.match_time.slice(0, 5) : ''
+
             const isFinished = match.result !== null
 
             return (
@@ -77,7 +80,7 @@ export default function ResultsPage() {
                   <p className="text-xs font-semibold" style={{color:'#244ffe'}}>
                     PARTIDO #{match.id} <span className="text-gray-600 font-normal">· {match.group_name}</span>
                   </p>
-                  <p className="text-xs" style={{color:'#555'}}>{dateStr} · {match.match_time}</p>
+                  <p className="text-xs" style={{color:'#555'}}>{dateStr} · {formattedTime}</p>
                 </div>
 
                 {/* Marcadores e Información de los equipos */}
