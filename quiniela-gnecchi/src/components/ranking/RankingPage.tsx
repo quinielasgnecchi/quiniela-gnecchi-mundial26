@@ -18,7 +18,7 @@ export default function RankingPage() {
       try {
         setLoading(true)
         
-        // Consultamos los usuarios incluyendo created_at para el desempate cronológico
+        // Consultamos los usuarios incluyendo created_at para el desempate cronológico por orden de registro
         const { data, error } = await supabase
           .from('profiles')
           .select('id, full_name, email, avatar_url, points, created_at')
@@ -44,7 +44,7 @@ export default function RankingPage() {
             }
           })
           
-          // Ordenar principalmente por puntos (descendente) y secundariamente por fecha de creación (ascendente)
+          // Ordenar principalmente por puntos (descendente) y secundariamente por fecha de creación/registro (ascendente)
           formattedData.sort((a, b) => {
             if (b.points !== a.points) return b.points - a.points
             
@@ -76,6 +76,14 @@ export default function RankingPage() {
   // Encontrar el puntaje máximo global del ranking
   const maxPoints = ranking.length > 0 ? Math.max(...ranking.map(p => p.points)) : 0
 
+  // Construir mapeo de puntajes a posiciones sin saltos numéricos estadísticos
+  // Ejemplo: [9, 8, 8, 8, 8, 7, 7] -> 9 es pos 1, el bloque de 8 es pos 2, el bloque de 7 es pos 3
+  const distinctScores = Array.from(new Set(ranking.map(p => p.points))).sort((a, b) => b - a)
+  const scoreToPositionMap: Record<number, number> = {}
+  distinctScores.forEach((score, index) => {
+    scoreToPositionMap[score] = index + 1
+  })
+
   return (
     <div className="px-4 pt-6 pb-[100px] min-h-screen bg-[#0a0a0a] text-white">
       {/* Cabecera */}
@@ -92,9 +100,8 @@ export default function RankingPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {ranking.map((player, index) => {
-            const position = index + 1
-            // Es ganador si sus puntos igualan al puntaje máximo de la tabla
+          {ranking.map((player) => {
+            const position = scoreToPositionMap[player.points]
             const isWinner = player.points === maxPoints
 
             // Estilos estéticos: Dorado para ganadores, gris oscuro neutro para el resto
