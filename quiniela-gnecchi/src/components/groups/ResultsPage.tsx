@@ -176,19 +176,20 @@ export default function ResultsPage() {
 
             const matchPreds = predictions.filter(p => p.match_id === match.id)
             
+            // Corrección: Mapeo y ordenamiento alfabético estricto de nombres limpios (.trim())
             const homePredictors = matchPreds
               .filter(p => p.prediction === 'home')
-              .map(p => p.profiles?.full_name || 'Anónimo')
+              .map(p => (p.profiles?.full_name ? p.profiles.full_name.trim() : 'Anónimo'))
               .sort((a, b) => a.localeCompare('es', { sensitivity: 'base' }))
 
             const drawPredictors = matchPreds
               .filter(p => p.prediction === 'draw')
-              .map(p => p.profiles?.full_name || 'Anónimo')
+              .map(p => (p.profiles?.full_name ? p.profiles.full_name.trim() : 'Anónimo'))
               .sort((a, b) => a.localeCompare('es', { sensitivity: 'base' }))
 
             const awayPredictors = matchPreds
               .filter(p => p.prediction === 'away')
-              .map(p => p.profiles?.full_name || 'Anónimo')
+              .map(p => (p.profiles?.full_name ? p.profiles.full_name.trim() : 'Anónimo'))
               .sort((a, b) => a.localeCompare('es', { sensitivity: 'base' }))
 
             // Encontrar la predicción realizada por el usuario logueado en este partido específico
@@ -276,7 +277,7 @@ export default function ResultsPage() {
                         <div className="flex flex-wrap gap-1.5">
                           {homePredictors.map((name, idx) => {
                             const isMe = name === currentUserFullName
-                            const isLeader = leaders.includes(name.trim())
+                            const isLeader = leaders.includes(name)
                             return (
                               <span 
                                 key={idx} 
@@ -308,7 +309,7 @@ export default function ResultsPage() {
                         <div className="flex flex-wrap gap-1.5">
                           {drawPredictors.map((name, idx) => {
                             const isMe = name === currentUserFullName
-                            const isLeader = leaders.includes(name.trim())
+                            const isLeader = leaders.includes(name)
                             return (
                               <span 
                                 key={idx} 
@@ -340,7 +341,7 @@ export default function ResultsPage() {
                         <div className="flex flex-wrap gap-1.5">
                           {awayPredictors.map((name, idx) => {
                             const isMe = name === currentUserFullName
-                            const isLeader = leaders.includes(name.trim())
+                            const isLeader = leaders.includes(name)
                             return (
                               <span 
                                 key={idx} 
