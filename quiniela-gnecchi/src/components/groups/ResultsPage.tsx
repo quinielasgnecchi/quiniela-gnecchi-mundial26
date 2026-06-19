@@ -45,7 +45,15 @@ export default function ResultsPage() {
         .select('id, group_name, match_date, match_time, home_team, away_team, home_score, away_score, result')
         .order('id', { ascending: true })
 
-      if (matchesData) setMatches(matchesData)
+      if (matchesData) {
+        const parsedMatches = matchesData.map(m => ({
+          ...m,
+          home_score: m.home_score !== null && m.home_score !== undefined ? Number(m.home_score) : null,
+          away_score: m.away_score !== null && m.away_score !== undefined ? Number(m.away_score) : null,
+          result: m.result || null
+        }))
+        setMatches(parsedMatches)
+      }
 
       let allPredictions: PredictionData[] = []
       let fromRange = 0
@@ -129,7 +137,6 @@ export default function ResultsPage() {
               .map(p => p.profiles?.full_name || 'Anónimo')
               .sort((a, b) => a.localeCompare('es', { sensitivity: 'base' }))
 
-            // Función auxiliar para determinar los estilos del usuario actual según su acierto/fallo
             const getUserStyles = (currentBlockType: 'home' | 'draw' | 'away') => {
               if (!isFinished) {
                 return 'bg-[#244ffe]/20 border-[#244ffe] text-white ring-1 ring-[#244ffe]/30'
