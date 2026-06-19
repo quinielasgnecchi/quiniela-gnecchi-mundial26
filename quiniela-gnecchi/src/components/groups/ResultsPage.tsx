@@ -132,7 +132,7 @@ export default function ResultsPage() {
           </div>
 
           {/* Menú de selección de jornadas optimizado para pantalla completa en móviles */}
-          <div className="flex w-full gap-2 mt-2">
+          <div className="flex w-full gap-1.5 mt-2">
             {[1, 2, 3].map((matchday) => {
               const isActive = selectedMatchday === matchday
               return (
@@ -142,13 +142,13 @@ export default function ResultsPage() {
                     setSelectedMatchday(matchday)
                     setExpandedMatchId(null) // Resetea expansiones al cambiar pestaña
                   }}
-                  className={`flex-1 h-11 rounded-xl font-bold text-xs sm:text-sm transition-all px-1 text-center ${
+                  className={`flex-1 h-11 rounded-xl font-bold text-[11px] xs:text-xs sm:text-sm transition-all px-0.5 text-center ${
                     isActive 
                       ? 'bg-[#244ffe] text-white' 
                       : 'bg-[#141414] border border-[#1f1f1f] text-gray-400'
                   }`}
                 >
-                  Jor. {matchday}
+                  Jornada {matchday}
                 </button>
               )
             })}
