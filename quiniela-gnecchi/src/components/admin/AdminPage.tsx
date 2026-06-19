@@ -19,6 +19,9 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [scores, setScores] = useState<Record<number, { home_score: string; away_score: string }>>({})
   const [savingId, setSavingId] = useState<number | null>(null)
+  
+  // Estado para controlar la jornada activa
+  const [selectedMatchday, setSelectedMatchday] = useState<number>(1)
 
   useEffect(() => {
     fetchMatches()
@@ -83,7 +86,6 @@ export default function AdminPage() {
     setSavingId(matchId)
 
     try {
-      // Invocamos la RPC definida en base de datos para omitir problemas de RLS local
       const { error } = await supabase.rpc('save_match_result', {
         p_match_id: matchId,
         p_home_score: hScore,
@@ -105,21 +107,50 @@ export default function AdminPage() {
     }
   }
 
+  // Filtrado de 24 partidos por jornada basado en ID
+  const filteredMatches = matches.filter(match => {
+    if (selectedMatchday === 1) return match.id >= 1 && match.id <= 24
+    if (selectedMatchday === 2) return match.id >= 25 && match.id <= 48
+    if (selectedMatchday === 3) return match.id >= 49 && match.id <= 72
+    return false
+  })
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-4 pb-24">
       <div className="max-w-md mx-auto">
         <h1 className="text-xl font-bold mb-1">Panel de Administrador</h1>
-        <p className="text-xs text-gray-500 mb-6">Ingresa los resultados oficiales aquí.</p>
+        <p className="text-xs text-gray-500 mb-4">Ingresa los resultados oficiales aquí.</p>
+
+        {/* Menú de selección de jornadas idéntico a ResultsPage */}
+        <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none">
+          {[1, 2, 3].map((matchday) => {
+            const isActive = selectedMatchday === matchday
+            return (
+              <button
+                key={matchday}
+                onClick={() => setSelectedMatchday(matchday)}
+                className={`h-11 px-6 rounded-xl font-bold text-sm transition-all flex-shrink-0 ${
+                  isActive 
+                    ? 'bg-[#244ffe] text-white' 
+                    : 'bg-[#141414] border border-[#1f1f1f] text-gray-400'
+                }`}
+              >
+                Jornada {matchday}
+              </button>
+            )
+          })}
+        </div>
 
         {loading ? (
-          <p className="text-center text-sm text-gray-400">Cargando partidos...</p>
+          <p className="text-center text-sm text-gray-400 py-8">Cargando partidos...</p>
+        ) : filteredMatches.length === 0 ? (
+          <p className="text-center text-xs text-gray-500 py-8">No hay partidos cargados para esta jornada.</p>
         ) : (
           <div className="flex flex-col gap-4">
-            {matches.map(match => {
+            {filteredMatches.map(match => {
               const isSaving = savingId === match.id
               const hasResult = match.result !== null
 
-              // Condicional dinámico de clases para el botón según la existencia de marcador previo
               const buttonStyles = isSaving
                 ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                 : hasResult
