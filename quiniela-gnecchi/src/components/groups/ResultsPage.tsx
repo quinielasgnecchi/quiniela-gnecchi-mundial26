@@ -173,6 +173,18 @@ export default function ResultsPage() {
               .map(p => p.profiles?.full_name || 'Anónimo')
               .sort((a, b) => a.localeCompare('es', { sensitivity: 'base' }))
 
+            // Encontrar la predicción realizada por el usuario logueado en este partido específico
+            const currentUserPrediction = matchPreds.find(p => p.profiles?.full_name?.trim() === currentUserFullName)?.prediction
+
+            // Determinar si acertó el resultado global oficial
+            const isHit = isFinished && currentUserPrediction === match.result
+
+            // Construir los estilos del borde dinámico para el contenedor del partido
+            let borderStyles = '1px solid #1f1f1f'
+            if (isFinished) {
+              borderStyles = isHit ? '2px solid #00ca42' : '2px solid #ff2e2e'
+            }
+
             const getUserStyles = (currentBlockType: 'home' | 'draw' | 'away') => {
               if (!isFinished) {
                 return 'bg-[#244ffe]/20 border-[#244ffe] text-white ring-1 ring-[#244ffe]/30'
@@ -190,7 +202,7 @@ export default function ResultsPage() {
                 className="p-4 rounded-2xl cursor-pointer transition-all active:scale-[0.99]" 
                 style={{
                   background: '#141414',
-                  border: `1px solid ${isFinished ? 'rgba(0,202,66,0.2)' : '#1f1f1f'}`
+                  border: borderStyles
                 }}
               >
                 {/* ID del Partido y Fecha */}
