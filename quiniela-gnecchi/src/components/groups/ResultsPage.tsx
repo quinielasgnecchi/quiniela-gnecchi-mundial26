@@ -144,7 +144,7 @@ export default function ResultsPage() {
                   }}
                   className={`flex-1 h-11 rounded-xl font-bold text-xs sm:text-sm transition-all px-1 text-center ${
                     isActive 
-                      ? 'bg-[#244ffe]' text-white' 
+                      ? 'bg-[#244ffe] text-white' 
                       : 'bg-[#141414] border border-[#1f1f1f] text-gray-400'
                   }`}
                 >
