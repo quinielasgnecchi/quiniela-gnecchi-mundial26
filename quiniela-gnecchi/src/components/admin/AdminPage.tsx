@@ -28,11 +28,9 @@ export default function AdminPage() {
   const [phaseOpen, setPhaseOpen] = useState(false)
   const [phaseId, setPhaseId] = useState('')
   
-  // Guardamos goles y resultado mapeados por el ID exacto del partido (1 al 72)
   const [scores, setScores] = useState<Record<number, MatchScores>>({})
   const [savingResults, setSavingResults] = useState(false)
   
-  // Modificado: Ahora la pestaña activa por defecto al entrar es la de marcadores
   const [activeTab, setActiveTab] = useState<'results' | 'participants' | 'settings'>('results')
   
   const [syncing, setSyncing] = useState(false)
@@ -63,14 +61,12 @@ export default function AdminPage() {
   }
 
   async function fetchSavedResults() {
-    // 1. Inicializar el objeto con los partidos locales vacíos
     const initialScores: Record<number, MatchScores> = {}
     GROUP_MATCHES.forEach(match => {
       initialScores[match.id] = { home_score: null, away_score: null, result: null }
     })
 
     try {
-      // 2. Traer los marcadores directamente de la tabla 'matches' (igual que tu vista de resultados)
       const { data: matchesData } = await supabase
         .from('matches')
         .select('id, home_score, away_score, result')
@@ -80,7 +76,7 @@ export default function AdminPage() {
           initialScores[row.id] = {
             home_score: row.home_score !== null ? Number(row.home_score) : null,
             away_score: row.away_score !== null ? Number(row.away_score) : null,
-            result: row.result || null
+            result: (row.result as 'home' | 'draw' | 'away') || null
           }
         })
       }
@@ -202,10 +198,10 @@ export default function AdminPage() {
   async function saveResults() {
     setSavingResults(true)
     try {
-      for (const [matchId, data] of Object.entries(scores)) {
-        // CORRECCIÓN: Comprobación estricta contra null para que admita el número 0 como marcador válido
+      // Modificado para guardar de manera asíncrona en paralelo y procesar todas las filas válidas modificadas sin saltarse el cero
+      const promises = Object.entries(scores).map(([matchId, data]) => {
         if (data.home_score !== null && data.away_score !== null && data.result !== null) {
-          await supabase
+          return supabase
             .from('matches')
             .update({
               home_score: data.home_score,
@@ -214,6 +210,11 @@ export default function AdminPage() {
             })
             .eq('id', parseInt(matchId))
         }
+        return null
+      }).filter(Boolean)
+
+      if (promises.length > 0) {
+        await Promise.all(promises)
       }
 
       await supabase.rpc('recalculate_points')
@@ -264,7 +265,7 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Tabs modificados en orden y etiquetas */}
+      {/* Tabs */}
       <div className="flex bg-[#111] rounded-xl p-1 mb-5">
         {(['results', 'participants', 'settings'] as const).map(tab => (
           <button
