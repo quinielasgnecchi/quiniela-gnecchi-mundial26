@@ -179,10 +179,13 @@ export default function ResultsPage() {
             // Determinar si acertó el resultado global oficial
             const isHit = isFinished && currentUserPrediction === match.result
 
-            // Construir los estilos del borde dinámico para el contenedor del partido
-            let borderStyles = '1px solid #1f1f1f'
+            // Construir los estilos del borde dinámico (azul si ya pasó, gris normal si está pendiente)
+            const borderStyles = isFinished ? '1px solid #244ffe' : '1px solid #1f1f1f'
+
+            // Determinar color de "PARTIDO #X" según acierto o fallo
+            let labelColor = '#244ffe'
             if (isFinished) {
-              borderStyles = isHit ? '2px solid #00ca42' : '2px solid #ff2e2e'
+              labelColor = isHit ? '#00ca42' : '#ff2e2e'
             }
 
             const getUserStyles = (currentBlockType: 'home' | 'draw' | 'away') => {
@@ -207,7 +210,7 @@ export default function ResultsPage() {
               >
                 {/* ID del Partido y Fecha */}
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs font-semibold" style={{ color: '#244ffe' }}>
+                  <p className="text-xs font-semibold" style={{ color: labelColor }}>
                     PARTIDO #{match.id} <span className="text-gray-600 font-normal">· {match.group_name}</span>
                   </p>
                   <div className="flex items-center gap-2">
