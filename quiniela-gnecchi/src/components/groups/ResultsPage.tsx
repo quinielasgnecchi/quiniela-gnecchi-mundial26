@@ -179,9 +179,6 @@ export default function ResultsPage() {
             // Determinar si acertó el resultado global oficial
             const isHit = isFinished && currentUserPrediction === match.result
 
-            // Borde delgado de 1px azul si ya finalizó, o gris normal si está pendiente
-            const borderStyles = isFinished ? '1px solid #244ffe' : '1px solid #1f1f1f'
-
             const getUserStyles = (currentBlockType: 'home' | 'draw' | 'away') => {
               if (!isFinished) {
                 return 'bg-[#244ffe]/20 border-[#244ffe] text-white ring-1 ring-[#244ffe]/30'
@@ -199,20 +196,20 @@ export default function ResultsPage() {
                 className="p-4 rounded-2xl cursor-pointer transition-all active:scale-[0.99]" 
                 style={{
                   background: '#141414',
-                  border: borderStyles
+                  border: `1px solid ${isFinished ? 'rgba(0,202,66,0.2)' : '#1f1f1f'}`
                 }}
               >
                 {/* ID del Partido y Fecha */}
                 <div className="flex items-center justify-between mb-1">
-                  <div className="text-xs font-semibold">
+                  <p className="text-xs font-semibold">
                     <span style={{ color: '#244ffe' }}>PARTIDO #{match.id}</span>
+                    <span className="text-gray-600 font-normal"> · {match.group_name}</span>
                     {isFinished && (
-                      <span style={{ color: isHit ? '#00ca42' : '#ff2e2e' }}>
+                      <span style={{ color: isHit ? '#00ca42' : '#ff2e2e', fontWeight: 'bold' }}>
                         {isHit ? ' ✓' : ' ✗'}
                       </span>
                     )}
-                    <span className="text-gray-600 font-normal"> · {match.group_name}</span>
-                  </div>
+                  </p>
                   <div className="flex items-center gap-2">
                     <p className="text-xs" style={{ color: '#555' }}>{dateStr} · {formattedTime}</p>
                     <span className="text-gray-600 text-xs transition-transform duration-200" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
