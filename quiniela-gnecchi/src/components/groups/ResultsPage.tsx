@@ -113,30 +113,27 @@ export default function ResultsPage() {
             </div>
           </div>
 
-          {/* Selector de Jornadas con diseño idéntico al de la captura de pantalla */}
-          <div className="flex flex-col gap-2 mt-2">
-            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Jornadas</p>
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {[1, 2, 3].map((matchday) => {
-                const isActive = selectedMatchday === matchday
-                return (
-                  <button
-                    key={matchday}
-                    onClick={() => {
-                      setSelectedMatchday(matchday)
-                      setExpandedMatchId(null) // Resetea expansiones al cambiar pestaña
-                    }}
-                    className={`h-11 px-6 rounded-xl font-bold text-sm transition-all flex-shrink-0 ${
-                      isActive 
-                        ? 'bg-[#244ffe] text-white' 
-                        : 'bg-[#141414] border border-[#1f1f1f] text-gray-400'
-                    }`}
-                  >
-                    Jornada {matchday}
-                  </button>
-                )
-              })}
-            </div>
+          {/* Menú de selección de jornadas sin texto superior duplicado */}
+          <div className="flex gap-2 overflow-x-auto pb-1 mt-2 scrollbar-none">
+            {[1, 2, 3].map((matchday) => {
+              const isActive = selectedMatchday === matchday
+              return (
+                <button
+                  key={matchday}
+                  onClick={() => {
+                    setSelectedMatchday(matchday)
+                    setExpandedMatchId(null) // Resetea expansiones al cambiar pestaña
+                  }}
+                  className={`h-11 px-6 rounded-xl font-bold text-sm transition-all flex-shrink-0 ${
+                    isActive 
+                      ? 'bg-[#244ffe] text-white' 
+                      : 'bg-[#141414] border border-[#1f1f1f] text-gray-400'
+                  }`}
+                >
+                  Jornada {matchday}
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>
