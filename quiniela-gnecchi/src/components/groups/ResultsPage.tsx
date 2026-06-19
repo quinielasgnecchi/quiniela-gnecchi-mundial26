@@ -196,7 +196,7 @@ export default function ResultsPage() {
                 className="p-4 rounded-2xl cursor-pointer transition-all active:scale-[0.99]" 
                 style={{
                   background: '#141414',
-                  border: `1px solid ${isFinished ? 'rgba(0,202,66,0.2)' : '#1f1f1f'}`
+                  border: `1px solid ${isFinished ? 'rgba(36, 79, 254, 0.3)' : '#1f1f1f'}`
                 }}
               >
                 {/* ID del Partido y Fecha */}
@@ -208,7 +208,7 @@ export default function ResultsPage() {
                       </span>
                     )}
                     <span>
-                      <span style={{ color: '#244ffe' }}>Partido #{match.id}</span>
+                      <span style={{ color: '#244ffe' }}>Partido {match.id}</span>
                       <span className="text-gray-600 font-normal"> · {match.group_name}</span>
                     </span>
                   </p>
