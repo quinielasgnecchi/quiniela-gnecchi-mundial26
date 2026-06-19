@@ -29,6 +29,7 @@ export default function ResultsPage() {
   const { user } = useAuth()
   const [matches, setMatches] = useState<MatchData[]>([])
   const [predictions, setPredictions] = useState<PredictionData[]>([])
+  const [leaders, setLeaders] = useState<string[]>([])
   const [expandedMatchId, setExpandedMatchId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   
@@ -43,6 +44,7 @@ export default function ResultsPage() {
 
   async function fetchInitialData() {
     try {
+      // 1. Obtener Partidos
       const { data: matchesData } = await supabase
         .from('matches')
         .select('id, group_name, match_date, match_time, home_team, away_team, home_score, away_score, result')
@@ -58,6 +60,22 @@ export default function ResultsPage() {
         setMatches(parsedMatches)
       }
 
+      // 2. Obtener Líderes del Ranking actuales
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('full_name, points')
+
+      if (profilesData && profilesData.length > 0) {
+        const maxPoints = Math.max(...profilesData.map(p => Number(p.points ?? 0)))
+        if (maxPoints > 0) {
+          const leadingUsers = profilesData
+            .filter(p => Number(p.points ?? 0) === maxPoints && p.full_name)
+            .map(p => p.full_name!.trim())
+          setLeaders(leadingUsers)
+        }
+      }
+
+      // 3. Obtener todas las predicciones por chunks (Paginación)
       let allPredictions: PredictionData[] = []
       let fromRange = 0
       let toRange = 999
@@ -258,14 +276,19 @@ export default function ResultsPage() {
                         <div className="flex flex-wrap gap-1.5">
                           {homePredictors.map((name, idx) => {
                             const isMe = name === currentUserFullName
+                            const isLeader = leaders.includes(name.trim())
                             return (
                               <span 
                                 key={idx} 
-                                className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap border font-medium ${
-                                  isMe ? getUserStyles('home') : 'bg-[#181818] border-[#222] text-gray-300'
+                                className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap border font-medium flex items-center gap-1 ${
+                                  isMe 
+                                    ? getUserStyles('home') 
+                                    : isLeader 
+                                      ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 font-bold' 
+                                      : 'bg-[#181818] border-[#222] text-gray-300'
                                 }`}
                               >
-                                {name}
+                                {name} {isLeader && '🏆'}
                               </span>
                             )
                           })}
@@ -285,14 +308,19 @@ export default function ResultsPage() {
                         <div className="flex flex-wrap gap-1.5">
                           {drawPredictors.map((name, idx) => {
                             const isMe = name === currentUserFullName
+                            const isLeader = leaders.includes(name.trim())
                             return (
                               <span 
                                 key={idx} 
-                                className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap border font-medium ${
-                                  isMe ? getUserStyles('draw') : 'bg-[#181818] border-[#222] text-gray-300'
+                                className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap border font-medium flex items-center gap-1 ${
+                                  isMe 
+                                    ? getUserStyles('draw') 
+                                    : isLeader 
+                                      ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 font-bold' 
+                                      : 'bg-[#181818] border-[#222] text-gray-300'
                                 }`}
                               >
-                                {name}
+                                {name} {isLeader && '🏆'}
                               </span>
                             )
                           })}
@@ -312,14 +340,19 @@ export default function ResultsPage() {
                         <div className="flex flex-wrap gap-1.5">
                           {awayPredictors.map((name, idx) => {
                             const isMe = name === currentUserFullName
+                            const isLeader = leaders.includes(name.trim())
                             return (
                               <span 
                                 key={idx} 
-                                className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap border font-medium ${
-                                  isMe ? getUserStyles('away') : 'bg-[#181818] border-[#222] text-gray-300'
+                                className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap border font-medium flex items-center gap-1 ${
+                                  isMe 
+                                    ? getUserStyles('away') 
+                                    : isLeader 
+                                      ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 font-bold' 
+                                      : 'bg-[#181818] border-[#222] text-gray-300'
                                 }`}
                               >
-                                {name}
+                                {name} {isLeader && '🏆'}
                               </span>
                             )
                           })}
