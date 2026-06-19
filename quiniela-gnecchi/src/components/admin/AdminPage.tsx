@@ -29,6 +29,8 @@ export default function AdminPage() {
   const [phaseId, setPhaseId] = useState('')
   
   const [scores, setScores] = useState<Record<number, MatchScores>>({})
+  // NUEVO: Rastreamos qué partidos editó el usuario en esta sesión para guardarlos con precisión
+  const [dirtyMatches, setDirtyMatches] = useState<Record<number, boolean>>({})
   const [savingResults, setSavingResults] = useState(false)
   
   const [activeTab, setActiveTab] = useState<'results' | 'participants' | 'settings'>('results')
@@ -85,6 +87,7 @@ export default function AdminPage() {
     }
 
     setScores(initialScores)
+    setDirtyMatches({}) // Reiniciar modificaciones al cargar
   }
 
   async function togglePhase() {
@@ -100,6 +103,7 @@ export default function AdminPage() {
   const handleScoreChange = (matchId: number, field: 'home_score' | 'away_score', value: string) => {
     const parsed = value === '' ? null : Math.max(0, parseInt(value, 10) || 0)
     
+    setDirtyMatches(prev => ({ ...prev, [matchId]: true }))
     setScores(prev => {
       const current = prev[matchId] || { home_score: null, away_score: null, result: null }
       const updated = { ...current, [field]: parsed }
@@ -116,6 +120,7 @@ export default function AdminPage() {
   }
 
   const adjustScore = (matchId: number, field: 'home_score' | 'away_score', delta: number) => {
+    setDirtyMatches(prev => ({ ...prev, [matchId]: true }))
     setScores(prev => {
       const current = prev[matchId] || { home_score: null, away_score: null, result: null }
       const currentVal = current[field] ?? 0
@@ -196,31 +201,48 @@ export default function AdminPage() {
   }
 
   async function saveResults() {
+    // Buscamos solo las llaves de partidos marcados como modificados (dirty)
+    const modifiedMatchIds = Object.keys(dirtyMatches).map(id => parseInt(id, 10))
+
+    if (modifiedMatchIds.length === 0) {
+      alert('No has realizado ninguna modificación nueva para guardar.')
+      return
+    }
+
     setSavingResults(true)
     try {
-      const promises = Object.entries(scores).map(([matchId, data]) => {
-        if (data.home_score !== null && data.away_score !== null && data.result !== null) {
-          return supabase
-            .from('matches')
-            .update({
-              home_score: data.home_score,
-              away_score: data.away_score,
-              result: data.result
-            })
-            .eq('id', parseInt(matchId, 10))
-        }
-        return null
+      const promises = modifiedMatchIds.map((matchId) => {
+        const data = scores[matchId]
+        if (!data) return null
+
+        // Si borraste los goles voluntariamente, los devolvemos a NULL en la BD
+        const homeScoreValue = data.home_score === null ? null : data.home_score
+        const awayScoreValue = data.away_score === null ? null : data.away_score
+        const resultValue = (homeScoreValue === null || awayScoreValue === null) ? null : data.result
+
+        return supabase
+          .from('matches')
+          .update({
+            home_score: homeScoreValue,
+            away_score: awayScoreValue,
+            result: resultValue
+          })
+          .eq('id', matchId)
       }).filter(Boolean)
 
       if (promises.length > 0) {
         await Promise.all(promises)
       }
 
+      // Forzar recálculo global de puntos en la base de datos
       await supabase.rpc('recalculate_points')
-      alert('Marcadores guardados en la tabla oficial y puntos recalculados correctamente ✅')
+      
+      // Limpiar el estado de modificaciones locales tras guardar con éxito
+      setDirtyMatches({})
+      alert('Marcadores actualizados con éxito en la base de datos central y puntos recalculados. ✅')
     } catch (err) {
-      console.error(err)
-      alert('Ocurrió un error al guardar los marcadores.')
+      console.error('Error crítico al guardar marcadores:', err)
+      alert('Ocurrió un error al guardar los marcadores en Supabase.')
     } finally {
       setSavingResults(false)
     }
@@ -335,18 +357,26 @@ export default function AdminPage() {
             )}
           </div>
 
-          <p className="text-xs text-gray-400 mb-4 px-1">Modifica los goles con los botones + / - o escribiendo directamente. El ganador se calcula automáticamente en base a tu base de datos central.</p>
+          <p className="text-xs text-gray-400 mb-4 px-1">Modifica los goles con los botones + / - o escribiendo directamente. Al presionar guardar se actualizarán únicamente los partidos que alteraste.</p>
           
           <div className="flex flex-col gap-3">
             {GROUP_MATCHES.map(match => {
               const matchScores = scores[match.id] || { home_score: null, away_score: null, result: null }
+              const isDirty = !!dirtyMatches[match.id]
               const hf = getTeamFlag(match.home_team)
               const af = getTeamFlag(match.away_team)
               
               return (
-                <div key={match.id} className="bg-[#141414] border border-[#1f1f1f] rounded-2xl p-3.5">
+                <div 
+                  key={match.id} 
+                  className={`bg-[#141414] border rounded-2xl p-3.5 transition-colors ${
+                    isDirty ? 'border-[#0299fc]/50 bg-[#141820]' : 'border-[#1f1f1f]'
+                  }`}
+                >
                   <div className="flex justify-between items-center text-[11px] text-gray-500 mb-3">
-                    <span className="text-[#0299fc] font-bold">PARTIDO #{match.id}</span>
+                    <span className="text-[#0299fc] font-bold">
+                      PARTIDO #{match.id} {isDirty && <span className="text-yellow-500 font-normal ml-1">(Modificado)</span>}
+                    </span>
                     <span className="bg-[#1f1f1f] px-2 py-0.5 rounded-md font-medium text-gray-400">Grupo {match.group_name}</span>
                   </div>
                   
@@ -368,7 +398,7 @@ export default function AdminPage() {
                         </button>
                         <input
                           type="number"
-                          placeholder="0"
+                          placeholder="—"
                           min="0"
                           value={matchScores.home_score ?? ''}
                           onChange={(e) => handleScoreChange(match.id, 'home_score', e.target.value)}
@@ -408,7 +438,7 @@ export default function AdminPage() {
                         </button>
                         <input
                           type="number"
-                          placeholder="0"
+                          placeholder="—"
                           min="0"
                           value={matchScores.away_score ?? ''}
                           onChange={(e) => handleScoreChange(match.id, 'away_score', e.target.value)}
@@ -434,7 +464,7 @@ export default function AdminPage() {
             onClick={saveResults}
             disabled={savingResults}
           >
-            {savingResults ? 'Guardando y Recalculando...' : '💾 Guardar Marcadores y Calcular Puntos'}
+            {savingResults ? 'Guardando...' : '💾 Guardar Marcadores Modificados'}
           </button>
         </div>
       )}
