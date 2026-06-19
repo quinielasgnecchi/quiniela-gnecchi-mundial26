@@ -93,17 +93,22 @@ export default function AdminPage() {
         })
         .eq('id', matchId)
 
-      if (matchError) throw matchError
+      if (matchError) {
+        alert(`Error en UPDATE matches: ${matchError.message || JSON.stringify(matchError)}`)
+        throw matchError
+      }
 
-      // 2. Ejecutar la función RPC para recalcular puntos globales instantáneamente
+      // 2. Ejecutar la función RPC para recalcular puntos globales
       const { error: rpcError } = await supabase.rpc('recalculate_points')
-      if (rpcError) throw rpcError
+      if (rpcError) {
+        alert(`Error en RPC recalculate_points: ${rpcError.message || JSON.stringify(rpcError)}`)
+        throw rpcError
+      }
 
       alert(`Partido #${matchId} actualizado con éxito. Puntos recalculados.`)
       fetchMatches()
     } catch (err) {
-      console.error('Error al guardar el resultado:', err)
-      alert('Ocurrió un error al guardar el resultado en la base de datos.')
+      console.error('Error detallado:', err)
     } finally {
       setSavingId(null)
     }
