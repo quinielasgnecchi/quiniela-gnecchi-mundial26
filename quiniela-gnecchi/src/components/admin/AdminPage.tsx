@@ -98,7 +98,7 @@ export default function AdminPage() {
   }
 
   const handleScoreChange = (matchId: number, field: 'home_score' | 'away_score', value: string) => {
-    const parsed = value === '' ? null : Math.max(0, parseInt(value) || 0)
+    const parsed = value === '' ? null : Math.max(0, parseInt(value, 10) || 0)
     
     setScores(prev => {
       const current = prev[matchId] || { home_score: null, away_score: null, result: null }
@@ -198,7 +198,6 @@ export default function AdminPage() {
   async function saveResults() {
     setSavingResults(true)
     try {
-      // Modificado para guardar de manera asíncrona en paralelo y procesar todas las filas válidas modificadas sin saltarse el cero
       const promises = Object.entries(scores).map(([matchId, data]) => {
         if (data.home_score !== null && data.away_score !== null && data.result !== null) {
           return supabase
@@ -208,7 +207,7 @@ export default function AdminPage() {
               away_score: data.away_score,
               result: data.result
             })
-            .eq('id', parseInt(matchId))
+            .eq('id', parseInt(matchId, 10))
         }
         return null
       }).filter(Boolean)
@@ -267,7 +266,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="flex bg-[#111] rounded-xl p-1 mb-5">
-        {(['results', 'participants', 'settings'] as const).map(tab => (
+        {([ 'results', 'participants', 'settings' ] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
