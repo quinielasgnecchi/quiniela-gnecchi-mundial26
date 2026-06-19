@@ -34,14 +34,14 @@ export default function Dashboard() {
           .maybeSingle()
 
         const currentProfile = allProfiles?.find(p => p.id === user.id)
-        const totalPoints = currentProfile?.points ?? 0
+        const totalPoints = Number(currentProfile?.points ?? 0)
 
         let computedPosition = 1
         if (allProfiles && currentProfile) {
           // Ordenamos bajo la misma lógica oficial: 1. Puntos (desc), 2. Registro/Creado (asc)
           const sorted = [...allProfiles].sort((a, b) => {
-            const pointsA = a.points ?? 0
-            const pointsB = b.points ?? 0
+            const pointsA = Number(a.points ?? 0)
+            const pointsB = Number(b.points ?? 0)
             if (pointsB !== pointsA) return pointsB - pointsA
             
             const dateA = new Date(a.created_at || 0).getTime()
@@ -50,7 +50,7 @@ export default function Dashboard() {
           })
 
           // Determinamos el orden único de puntajes descendentes para calcular la posición real consecutiva
-          const distinctScores = Array.from(new Set(sorted.map(p => p.points ?? 0))).sort((a, b) => b - a)
+          const distinctScores = Array.from(new Set(sorted.map(p => Number(p.points ?? 0)))).sort((a, b) => b - a)
           const scoreToPositionMap: Record<number, number> = {}
           distinctScores.forEach((score, index) => {
             scoreToPositionMap[score] = index + 1
@@ -129,7 +129,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Botón neutral de gris para consulta únicamente */}
       <button 
         className="w-full py-4 rounded-xl font-bold text-sm mb-4 text-gray-300 transition-colors" 
         style={{ background: '#1a1a1a', border: '1px solid #2a2a2a' }} 
