@@ -29,7 +29,6 @@ export default function AdminPage() {
   const [phaseId, setPhaseId] = useState('')
   
   const [scores, setScores] = useState<Record<number, MatchScores>>({})
-  // NUEVO: Rastreamos qué partidos editó el usuario en esta sesión para guardarlos con precisión
   const [dirtyMatches, setDirtyMatches] = useState<Record<number, boolean>>({})
   const [savingResults, setSavingResults] = useState(false)
   
@@ -69,13 +68,14 @@ export default function AdminPage() {
     })
 
     try {
-      const { data: matchesData } = await supabase
-        .from('matches')
-        .select('id, home_score, away_score, result')
+      // CORRECCIÓN: Leemos desde match_results en lugar de matches
+      const { data: resultsData } = await supabase
+        .from('match_results')
+        .select('match_id, home_score, away_score, result')
 
-      if (matchesData) {
-        matchesData.forEach((row) => {
-          initialScores[row.id] = {
+      if (resultsData) {
+        resultsData.forEach((row) => {
+          initialScores[row.match_id] = {
             home_score: row.home_score !== null ? Number(row.home_score) : null,
             away_score: row.away_score !== null ? Number(row.away_score) : null,
             result: (row.result as 'home' | 'draw' | 'away') || null
@@ -87,7 +87,7 @@ export default function AdminPage() {
     }
 
     setScores(initialScores)
-    setDirtyMatches({}) // Reiniciar modificaciones al cargar
+    setDirtyMatches({})
   }
 
   async function togglePhase() {
@@ -170,14 +170,15 @@ export default function AdminPage() {
             if (golesCasa > golesVisita) ganador = 'home'
             if (golesVisita > golesCasa) ganador = 'away'
 
+            // CORRECCIÓN: Guardar en match_results usando upsert
             await supabase
-              .from('matches')
-              .update({
+              .from('match_results')
+              .upsert({
+                match_id: miPartido.id,
                 home_score: golesCasa,
                 away_score: golesVisita,
                 result: ganador
               })
-              .eq('id', miPartido.id)
 
             nuevasScoresLocal[miPartido.id] = {
               home_score: golesCasa,
@@ -201,7 +202,6 @@ export default function AdminPage() {
   }
 
   async function saveResults() {
-    // Buscamos solo las llaves de partidos marcados como modificados (dirty)
     const modifiedMatchIds = Object.keys(dirtyMatches).map(id => parseInt(id, 10))
 
     if (modifiedMatchIds.length === 0) {
@@ -211,38 +211,44 @@ export default function AdminPage() {
 
     setSavingResults(true)
     try {
-      const promises = modifiedMatchIds.map((matchId) => {
+      // CORRECCIÓN: Hacemos upsert secuencial en la tabla match_results
+      for (const matchId of modifiedMatchIds) {
         const data = scores[matchId]
-        if (!data) return null
+        if (!data) continue
 
-        // Si borraste los goles voluntariamente, los devolvemos a NULL en la BD
-        const homeScoreValue = data.home_score === null ? null : data.home_score
-        const awayScoreValue = data.away_score === null ? null : data.away_score
+        const homeScoreValue = data.home_score === null ? null : Number(data.home_score)
+        const awayScoreValue = data.away_score === null ? null : Number(data.away_score)
         const resultValue = (homeScoreValue === null || awayScoreValue === null) ? null : data.result
 
-        return supabase
-          .from('matches')
-          .update({
-            home_score: homeScoreValue,
-            away_score: awayScoreValue,
-            result: resultValue
-          })
-          .eq('id', matchId)
-      }).filter(Boolean)
-
-      if (promises.length > 0) {
-        await Promise.all(promises)
+        if (homeScoreValue === null || awayScoreValue === null) {
+          // Si se limpian los goles, eliminamos el registro de resultados de ese partido
+          const { error } = await supabase
+            .from('match_results')
+            .delete()
+            .eq('match_id', matchId)
+          if (error) throw error
+        } else {
+          // Si tiene goles válidos, insertamos o actualizamos (upsert)
+          const { error } = await supabase
+            .from('match_results')
+            .upsert({
+              match_id: matchId,
+              home_score: homeScoreValue,
+              away_score: awayScoreValue,
+              result: resultValue
+            })
+          if (error) throw error
+        }
       }
 
-      // Forzar recálculo global de puntos en la base de datos
-      await supabase.rpc('recalculate_points')
+      const { error: rpcError } = await supabase.rpc('recalculate_points')
+      if (rpcError) throw rpcError
       
-      // Limpiar el estado de modificaciones locales tras guardar con éxito
       setDirtyMatches({})
       alert('Marcadores actualizados con éxito en la base de datos central y puntos recalculados. ✅')
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error crítico al guardar marcadores:', err)
-      alert('Ocurrió un error al guardar los marcadores en Supabase.')
+      alert(`Ocurrió un error al guardar los marcadores: ${err.message || err}`)
     } finally {
       setSavingResults(false)
     }
