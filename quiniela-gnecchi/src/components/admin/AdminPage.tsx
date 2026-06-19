@@ -83,32 +83,23 @@ export default function AdminPage() {
     setSavingId(matchId)
 
     try {
-      // 1. Guardar el resultado directamente en la tabla de matches
-      const { error: matchError } = await supabase
-        .from('matches')
-        .update({
-          home_score: hScore,
-          away_score: aScore,
-          result: finalResult
-        })
-        .eq('id', matchId)
+      // Invocamos la RPC definida en base de datos para omitir problemas de RLS local
+      const { error } = await supabase.rpc('save_match_result', {
+        p_match_id: matchId,
+        p_home_score: hScore,
+        p_away_score: aScore,
+        p_result: finalResult
+      })
 
-      if (matchError) {
-        alert(`Error en UPDATE matches: ${matchError.message || JSON.stringify(matchError)}`)
-        throw matchError
-      }
-
-      // 2. Ejecutar la función RPC para recalcular puntos globales
-      const { error: rpcError } = await supabase.rpc('recalculate_points')
-      if (rpcError) {
-        alert(`Error en RPC recalculate_points: ${rpcError.message || JSON.stringify(rpcError)}`)
-        throw rpcError
+      if (error) {
+        alert(`Error al guardar resultado: ${error.message || JSON.stringify(error)}`)
+        throw error
       }
 
       alert(`Partido #${matchId} actualizado con éxito. Puntos recalculados.`)
       fetchMatches()
     } catch (err) {
-      console.error('Error detallado:', err)
+      console.error('Error detallado en la ejecución:', err)
     } finally {
       setSavingId(null)
     }
