@@ -68,7 +68,6 @@ export default function AdminPage() {
     })
 
     try {
-      // CORRECCIÓN: Leemos desde match_results en lugar de matches
       const { data: resultsData } = await supabase
         .from('match_results')
         .select('match_id, home_score, away_score, result')
@@ -170,8 +169,7 @@ export default function AdminPage() {
             if (golesCasa > golesVisita) ganador = 'home'
             if (golesVisita > golesCasa) ganador = 'away'
 
-            // CORRECCIÓN: Guardar en match_results usando upsert
-            await supabase
+            const { error: upsertError } = await supabase
               .from('match_results')
               .upsert({
                 match_id: miPartido.id,
@@ -179,6 +177,8 @@ export default function AdminPage() {
                 away_score: golesVisita,
                 result: ganador
               })
+
+            if (upsertError) throw upsertError
 
             nuevasScoresLocal[miPartido.id] = {
               home_score: golesCasa,
@@ -195,7 +195,7 @@ export default function AdminPage() {
       setSyncMessage(`🎉 Éxito: ${contadorActualizados} partidos actualizados de la API y puntos recalculados.`)
     } catch (error: any) {
       console.error(error)
-      setSyncMessage(`❌ Error: ${error.message || 'Error de conexión'}`)
+      setSyncMessage(`❌ Error: ${error.message || 'Error de conexión / Permisos'}`)
     } finally {
       setSyncing(false)
     }
@@ -211,7 +211,6 @@ export default function AdminPage() {
 
     setSavingResults(true)
     try {
-      // CORRECCIÓN: Hacemos upsert secuencial en la tabla match_results
       for (const matchId of modifiedMatchIds) {
         const data = scores[matchId]
         if (!data) continue
@@ -221,14 +220,12 @@ export default function AdminPage() {
         const resultValue = (homeScoreValue === null || awayScoreValue === null) ? null : data.result
 
         if (homeScoreValue === null || awayScoreValue === null) {
-          // Si se limpian los goles, eliminamos el registro de resultados de ese partido
           const { error } = await supabase
             .from('match_results')
             .delete()
             .eq('match_id', matchId)
           if (error) throw error
         } else {
-          // Si tiene goles válidos, insertamos o actualizamos (upsert)
           const { error } = await supabase
             .from('match_results')
             .upsert({
@@ -236,7 +233,7 @@ export default function AdminPage() {
               home_score: homeScoreValue,
               away_score: awayScoreValue,
               result: resultValue
-            })
+            }, { onConflict: 'match_id' })
           if (error) throw error
         }
       }
@@ -248,7 +245,7 @@ export default function AdminPage() {
       alert('Marcadores actualizados con éxito en la base de datos central y puntos recalculados. ✅')
     } catch (err: any) {
       console.error('Error crítico al guardar marcadores:', err)
-      alert(`Ocurrió un error al guardar los marcadores: ${err.message || err}`)
+      alert(`Ocurrió un error al guardar los marcadores: ${err.message || 'Asegúrate de que tu usuario tenga el rol admin en la base de datos.'}`)
     } finally {
       setSavingResults(false)
     }
@@ -276,7 +273,6 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-2 mb-6">
         <div className="bg-[#141414] border border-[#1f1f1f] rounded-2xl p-3 text-center">
           <p className="text-2xl font-bold">{participants.length}</p>
@@ -292,7 +288,6 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex bg-[#111] rounded-xl p-1 mb-5">
         {([ 'results', 'participants', 'settings' ] as const).map(tab => (
           <button
@@ -344,7 +339,6 @@ export default function AdminPage() {
 
       {activeTab === 'results' && (
         <div>
-          {/* Módulo API */}
           <div className="mb-5 p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f]">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Conexión API en Vivo</h3>
             <button
@@ -386,10 +380,8 @@ export default function AdminPage() {
                     <span className="bg-[#1f1f1f] px-2 py-0.5 rounded-md font-medium text-gray-400">Grupo {match.group_name}</span>
                   </div>
                   
-                  {/* Selector e Input Móvil */}
                   <div className="grid grid-cols-7 items-center gap-1 bg-[#0d0d0d] p-2.5 rounded-xl border border-[#1a1a1a]">
                     
-                    {/* Local */}
                     <div className="col-span-3 flex flex-col items-center gap-1.5 min-w-0">
                       <div className="flex items-center gap-1 w-full justify-center px-1">
                         <span className="text-base flex-shrink-0">{hf}</span>
@@ -419,7 +411,6 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    {/* VS / Resultado Visual */}
                     <div className="col-span-1 flex flex-col items-center justify-center">
                       <span className="text-[10px] text-gray-600 font-bold tracking-wider uppercase">VS</span>
                       {matchScores.result && (
@@ -429,7 +420,6 @@ export default function AdminPage() {
                       )}
                     </div>
 
-                    {/* Visitante */}
                     <div className="col-span-3 flex flex-col items-center gap-1.5 min-w-0">
                       <div className="flex items-center gap-1 w-full justify-center px-1">
                         <span className="text-xs font-semibold truncate text-gray-200">{match.away_team}</span>
