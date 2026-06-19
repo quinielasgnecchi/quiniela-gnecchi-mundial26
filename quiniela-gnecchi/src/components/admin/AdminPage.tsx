@@ -60,6 +60,7 @@ export default function AdminPage() {
     setParticipants((profiles ?? []).map(p => ({ ...p, submitted: submittedIds.has(p.id) })))
   }
 
+  // 1. LEER DIRECTAMENTE DE MATCHES
   async function fetchSavedResults() {
     const initialScores: Record<number, MatchScores> = {}
     GROUP_MATCHES.forEach(match => {
@@ -81,7 +82,7 @@ export default function AdminPage() {
         })
       }
     } catch (err) {
-      console.error('Error cargando marcadores existentes:', err)
+      console.error('Error cargando marcadores desde matches:', err)
     }
 
     setScores(initialScores)
@@ -133,16 +134,15 @@ export default function AdminPage() {
     })
   }
 
+  // 2. SINCRONIZACIÓN API DIRECTO A LA HOJA MATCHES
   async function syncApiResults() {
     setSyncing(true)
-    setSyncMessage('Conectando con football-data.org...')
+    setSyncMessage('Conectando con la API...')
     try {
       const apiMatches = await fetchLiveMatches()
-      const { data: tusPartidos, error: errorPartidos } = await supabase.from('matches').select('id, home_team, away_team')
+      const { data: tusPartidos } = await supabase.from('matches').select('id, home_team, away_team')
 
-      if (errorPartidos || !tusPartidos) {
-        throw new Error('No se pudieron leer los partidos de Supabase')
-      }
+      if (!tusPartidos) throw new Error('No se encontraron partidos locales.')
 
       let contadorActualizados = 0
       const nuevasScoresLocal = { ...scores }
@@ -167,12 +167,12 @@ export default function AdminPage() {
 
             await supabase
               .from('matches')
-              .upsert({
-                id: miPartido.id,
+              .update({
                 home_score: golesCasa,
                 away_score: golesVisita,
                 result: ganador
               })
+              .eq('id', miPartido.id)
 
             nuevasScoresLocal[miPartido.id] = {
               home_score: golesCasa,
@@ -186,53 +186,39 @@ export default function AdminPage() {
 
       setScores(nuevasScoresLocal)
       await supabase.rpc('recalculate_points')
-      setSyncMessage(`🎉 Éxito: ${contadorActualizados} partidos actualizados de la API y puntos recalculados.`)
+      setSyncMessage(`🎉 Éxito: ${contadorActualizados} partidos actualizados en matches.`)
     } catch (error: any) {
       console.error(error)
-      setSyncMessage(`❌ Error: ${error.message || 'Error de conexión'}`)
+      setSyncMessage(`❌ Error: ${error.message || 'Error de sincronización'}`)
     } finally {
       setSyncing(false)
     }
   }
 
+  // 3. GUARDAR MANUALMENTE DIRECTO EN LAS COLUMNAS DE MATCHES
   async function saveResults() {
     setSavingResults(true)
     try {
-      const rowsToUpsert = Object.entries(scores)
-        .map(([matchId, data]) => {
-          const matchStatic = GROUP_MATCHES.find(m => m.id === parseInt(matchId))
-          if (data.home_score !== null && data.away_score !== null && data.result !== null) {
-            return {
-              id: parseInt(matchId),
-              group_name: matchStatic?.group_name || '',
-              match_date: matchStatic?.match_date || '',
-              match_time: matchStatic?.match_time || '',
-              home_team: matchStatic?.home_team || '',
-              away_team: matchStatic?.away_team || '',
+      for (const [matchId, data] of Object.entries(scores)) {
+        if (data.home_score !== null && data.away_score !== null && data.result !== null) {
+          await supabase
+            .from('matches')
+            .update({
               home_score: data.home_score,
               away_score: data.away_score,
-              result: data.result,
-              phase: 'groups'
-            }
-          }
-          return null
-        })
-        .filter(Boolean)
-
-      if (rowsToUpsert.length > 0) {
-        const { error } = await supabase
-          .from('matches')
-          .upsert(rowsToUpsert, { onConflict: 'id' })
-
-        if (error) throw error
+              result: data.result
+            })
+            .eq('id', parseInt(matchId))
+        }
       }
 
+      // Llama a tu función encargada de repartir puntos a las quinielas basándose en 'matches'
       await supabase.rpc('recalculate_points')
-      alert('Marcadores guardados en la tabla oficial y puntos recalculados correctamente ✅')
+      alert('Marcadores guardados directamente en la hoja Matches y puntos actualizados ✅')
       await fetchSavedResults()
     } catch (err: any) {
       console.error(err)
-      alert(`Ocurrió un error al guardar los marcadores: ${err.message || err}`)
+      alert(`Error al guardar: ${err.message || err}`)
     } finally {
       setSavingResults(false)
     }
@@ -278,7 +264,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="flex bg-[#111] rounded-xl p-1 mb-5">
-        {(['results', 'participants', 'settings'] as const).map(tab => (
+        {([ 'results', 'participants', 'settings' ] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -347,7 +333,7 @@ export default function AdminPage() {
             )}
           </div>
 
-          <p className="text-xs text-gray-400 mb-4 px-1">Modifica los goles con los botones + / - o escribiendo directamente. El ganador se calcula automáticamente en base a tu base de datos central.</p>
+          <p className="text-xs text-gray-400 mb-4 px-1">Modifica los goles con los botones + / - o escribiendo directamente. Los cambios impactarán directo sobre la tabla Matches principal.</p>
           
           <div className="flex flex-col gap-3">
             {GROUP_MATCHES.map(match => {
@@ -362,7 +348,7 @@ export default function AdminPage() {
                     <span className="bg-[#1f1f1f] px-2 py-0.5 rounded-md font-medium text-gray-400">Grupo {match.group_name}</span>
                   </div>
                   
-                  {/* Selector e Input Móvil */}
+                  {/* Selector e Input */}
                   <div className="grid grid-cols-7 items-center gap-1 bg-[#0d0d0d] p-2.5 rounded-xl border border-[#1a1a1a]">
                     
                     {/* Local */}
@@ -446,7 +432,7 @@ export default function AdminPage() {
             onClick={saveResults}
             disabled={savingResults}
           >
-            {savingResults ? 'Guardando y Recalculando...' : '💾 Guardar Marcadores y Calcular Puntos'}
+            {savingResults ? 'Guardando...' : '💾 Guardar Marcadores en Matches'}
           </button>
         </div>
       )}
@@ -474,9 +460,6 @@ export default function AdminPage() {
                 />
               </button>
             </div>
-          </div>
-          <div className="bg-[#141414] border border-[#1f1f1f] rounded-2xl p-4 text-center text-gray-500 text-sm">
-            Más configuraciones disponibles próximamente
           </div>
         </div>
       )}
