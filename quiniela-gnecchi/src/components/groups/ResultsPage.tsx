@@ -176,21 +176,21 @@ export default function ResultsPage() {
 
             const matchPreds = predictions.filter(p => p.match_id === match.id)
             
-            // FILTRADO Y ORDENAMIENTO ALFABÉTICO ESTRICTO CON localeCompare
+            // FILTRADO Y ORDENAMIENTO ALFABÉTICO INMUNE A MAYÚSCULAS Y ACENTOS
             const homePredictors = matchPreds
               .filter(p => p.prediction === 'home')
               .map(p => (p.profiles?.full_name ? p.profiles.full_name.trim() : 'Anónimo'))
-              .sort((a, b) => a.localeCompare('es', { sensitivity: 'base', numeric: true }))
+              .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base', numeric: true }))
 
             const drawPredictors = matchPreds
               .filter(p => p.prediction === 'draw')
               .map(p => (p.profiles?.full_name ? p.profiles.full_name.trim() : 'Anónimo'))
-              .sort((a, b) => a.localeCompare('es', { sensitivity: 'base', numeric: true }))
+              .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base', numeric: true }))
 
             const awayPredictors = matchPreds
               .filter(p => p.prediction === 'away')
               .map(p => (p.profiles?.full_name ? p.profiles.full_name.trim() : 'Anónimo'))
-              .sort((a, b) => a.localeCompare('es', { sensitivity: 'base', numeric: true }))
+              .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base', numeric: true }))
 
             // Encontrar la predicción realizada por el usuario logueado en este partido específico
             const currentUserPrediction = matchPreds.find(p => p.profiles?.full_name?.trim() === currentUserFullName)?.prediction
