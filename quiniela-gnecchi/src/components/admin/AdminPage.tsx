@@ -117,6 +117,15 @@ export default function AdminPage() {
           <div className="flex flex-col gap-4">
             {matches.map(match => {
               const isSaving = savingId === match.id
+              const hasResult = match.result !== null
+
+              // Condicional dinámico de clases para el botón según la existencia de marcador previo
+              const buttonStyles = isSaving
+                ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                : hasResult
+                  ? 'bg-[#2a2a2a] hover:bg-[#333] text-gray-300'
+                  : 'bg-[#244ffe] hover:bg-[#1e40cc] text-white'
+
               return (
                 <div key={match.id} className="p-4 bg-[#141414] border border-[#1f1f1f] rounded-2xl">
                   <div className="flex justify-between items-center mb-3">
@@ -159,9 +168,9 @@ export default function AdminPage() {
                   <button
                     onClick={() => handleSaveResult(match.id)}
                     disabled={isSaving}
-                    className="w-full mt-4 bg-[#244ffe] hover:bg-[#1e40cc] disabled:bg-gray-700 text-white font-bold py-2 rounded-xl text-xs transition-colors"
+                    className={`w-full mt-4 font-bold py-2 rounded-xl text-xs transition-colors ${buttonStyles}`}
                   >
-                    {isSaving ? 'Guardando...' : match.result ? 'Actualizar Resultado' : 'Guardar Resultado'}
+                    {isSaving ? 'Guardando...' : hasResult ? 'Actualizar Resultado' : 'Guardar Resultado'}
                   </button>
                 </div>
               )
