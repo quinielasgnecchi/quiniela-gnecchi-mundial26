@@ -39,7 +39,7 @@ export default function RankingPage() {
               id: user.id,
               full_name: displayName,
               avatar_url: user.avatar_url,
-              points: user.points ?? 0,
+              points: Number(user.points ?? 0),
               created_at: user.created_at || ''
             }
           })
@@ -77,7 +77,6 @@ export default function RankingPage() {
   const maxPoints = ranking.length > 0 ? Math.max(...ranking.map(p => p.points)) : 0
 
   // Construir mapeo de puntajes a posiciones sin saltos numéricos estadísticos
-  // Ejemplo: [9, 8, 8, 8, 8, 7, 7] -> 9 es pos 1, el bloque de 8 es pos 2, el bloque de 7 es pos 3
   const distinctScores = Array.from(new Set(ranking.map(p => p.points))).sort((a, b) => b - a)
   const scoreToPositionMap: Record<number, number> = {}
   distinctScores.forEach((score, index) => {
@@ -102,7 +101,7 @@ export default function RankingPage() {
         <div className="flex flex-col gap-3">
           {ranking.map((player) => {
             const position = scoreToPositionMap[player.points]
-            const isWinner = player.points === maxPoints
+            const isWinner = player.points === maxPoints && player.points > 0
 
             // Estilos estéticos: Dorado para ganadores, gris oscuro neutro para el resto
             let badgeStyle = "bg-[#1a1a1a] text-gray-400"
