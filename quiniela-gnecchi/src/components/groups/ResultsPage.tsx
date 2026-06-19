@@ -39,35 +39,40 @@ export default function ResultsPage() {
   }, [])
 
   async function fetchInitialData() {
-    const { data: matchesData } = await supabase
-      .from('matches')
-      .select('id, group_name, match_date, match_time, home_team, away_team, home_score, away_score, result')
-      .order('id', { ascending: true })
+    try {
+      const { data: matchesData } = await supabase
+        .from('matches')
+        .select('id, group_name, match_date, match_time, home_team, away_team, home_score, away_score, result')
+        .order('id', { ascending: true })
 
-    if (matchesData) setMatches(matchesData)
+      if (matchesData) setMatches(matchesData)
 
-    let allPredictions: PredictionData[] = []
-    let fromRange = 0
-    let toRange = 999
-    let hasMore = true
+      let allPredictions: PredictionData[] = []
+      let fromRange = 0
+      let toRange = 999
+      let hasMore = true
 
-    while (hasMore) {
-      const { data: predsChunk } = await supabase
-        .from('predictions')
-        .select('match_id, prediction, profiles ( full_name )')
-        .range(fromRange, toRange)
+      while (hasMore) {
+        const { data: predsChunk } = await supabase
+          .from('predictions')
+          .select('match_id, prediction, profiles ( full_name )')
+          .range(fromRange, toRange)
 
-      if (predsChunk && predsChunk.length > 0) {
-        allPredictions = [...allPredictions, ...(predsChunk as unknown as PredictionData[])]
-        fromRange += 1000
-        toRange += 1000
-      } else {
-        hasMore = false
+        if (predsChunk && predsChunk.length > 0) {
+          allPredictions = [...allPredictions, ...(predsChunk as unknown as PredictionData[])]
+          fromRange += 1000
+          toRange += 1000
+        } else {
+          hasMore = false
+        }
       }
-    }
 
-    setPredictions(allPredictions)
-    loading && setLoading(false)
+      setPredictions(allPredictions)
+    } catch (error) {
+      console.error('Error al inicializar los datos de resultados:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const totalResults = matches.filter(m => m.result !== null).length
@@ -79,13 +84,13 @@ export default function ResultsPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
       {/* Cabecera pegajosa */}
-      <div className="sticky top-0 z-10 px-4 pt-5 pb-4" style={{background:'#0a0a0a',borderBottom:'1px solid #1a1a1a'}}>
+      <div className="sticky top-0 z-10 px-4 pt-5 pb-4" style={{ background: '#0a0a0a', borderBottom: '1px solid #1a1a1a' }}>
         <div className="max-w-md mx-auto">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="text-xl" style={{color:'#666'}}>←</button>
+            <button onClick={() => navigate(-1)} className="text-xl" style={{ color: '#666' }}>←</button>
             <div className="flex-1">
               <h1 className="font-bold text-lg text-white">Resultados Oficiales</h1>
-              <p className="text-xs" style={{color:'#555'}}>{totalResults} de 72 partidos jugados</p>
+              <p className="text-xs" style={{ color: '#555' }}>{totalResults} de 72 partidos jugados</p>
             </div>
           </div>
         </div>
@@ -94,13 +99,13 @@ export default function ResultsPage() {
       {/* Listado secuencial de partidos */}
       <div className="px-4 pt-4 pb-32 max-w-md mx-auto flex flex-col gap-3">
         {loading ? (
-          [...Array(6)].map((_, i) => <div key={i} className="h-24 rounded-2xl animate-pulse" style={{background:'#141414'}} />)
+          [...Array(6)].map((_, i) => <div key={i} className="h-24 rounded-2xl animate-pulse" style={{ background: '#141414' }} />)
         ) : (
           matches.map(match => {
             const hf = getTeamFlag(match.home_team)
             const af = getTeamFlag(match.away_team)
             const dateStr = new Date(`${match.match_date}T12:00:00`).toLocaleDateString('es-MX', {
-              weekday:'short', day:'numeric', month:'short'
+              weekday: 'short', day: 'numeric', month: 'short'
             })
 
             const formattedTime = match.match_time ? match.match_time.slice(0, 5) : ''
@@ -147,11 +152,11 @@ export default function ResultsPage() {
               >
                 {/* ID del Partido y Fecha */}
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs font-semibold" style={{color:'#244ffe'}}>
+                  <p className="text-xs font-semibold" style={{ color: '#244ffe' }}>
                     PARTIDO #{match.id} <span className="text-gray-600 font-normal">· {match.group_name}</span>
                   </p>
                   <div className="flex items-center gap-2">
-                    <p className="text-xs" style={{color:'#555'}}>{dateStr} · {formattedTime}</p>
+                    <p className="text-xs" style={{ color: '#555' }}>{dateStr} · {formattedTime}</p>
                     <span className="text-gray-600 text-xs transition-transform duration-200" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
                   </div>
                 </div>
@@ -169,7 +174,7 @@ export default function ResultsPage() {
                         {match.home_score} — {match.away_score}
                       </div>
                     ) : (
-                      <div className="text-xs font-bold px-3 py-1.5 rounded-xl bg-[#1a1a1a]" style={{color:'#444'}}>
+                      <div className="text-xs font-bold px-3 py-1.5 rounded-xl bg-[#1a1a1a]" style={{ color: '#444' }}>
                         PENDIENTE
                       </div>
                     )}
