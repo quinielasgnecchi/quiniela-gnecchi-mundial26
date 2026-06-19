@@ -201,14 +201,16 @@ export default function ResultsPage() {
               >
                 {/* ID del Partido y Fecha */}
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs font-semibold">
-                    <span style={{ color: '#244ffe' }}>PARTIDO #{match.id}</span>
-                    <span className="text-gray-600 font-normal"> · {match.group_name}</span>
+                  <p className="text-xs font-semibold flex items-center gap-1.5">
                     {isFinished && (
                       <span style={{ color: isHit ? '#00ca42' : '#ff2e2e', fontWeight: 'bold' }}>
-                        {isHit ? ' ✓' : ' ✗'}
+                        {isHit ? '✓' : '✗'}
                       </span>
                     )}
+                    <span>
+                      <span style={{ color: '#244ffe' }}>Partido #{match.id}</span>
+                      <span className="text-gray-600 font-normal"> · {match.group_name}</span>
+                    </span>
                   </p>
                   <div className="flex items-center gap-2">
                     <p className="text-xs" style={{ color: '#555' }}>{dateStr} · {formattedTime}</p>
