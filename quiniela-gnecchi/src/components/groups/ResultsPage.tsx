@@ -31,6 +31,9 @@ export default function ResultsPage() {
   const [predictions, setPredictions] = useState<PredictionData[]>([])
   const [expandedMatchId, setExpandedMatchId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  
+  // Estado para la jornada seleccionada (1, 2 o 3)
+  const [selectedMatchday, setSelectedMatchday] = useState<number>(1)
 
   const currentUserFullName = user?.full_name?.trim()
 
@@ -89,27 +92,63 @@ export default function ResultsPage() {
     setExpandedMatchId(expandedMatchId === matchId ? null : matchId)
   }
 
+  // Filtrado estricto por jornadas: 24 partidos cada una basados en su ID secuencial
+  const filteredMatches = matches.filter(match => {
+    if (selectedMatchday === 1) return match.id >= 1 && match.id <= 24
+    if (selectedMatchday === 2) return match.id >= 25 && match.id <= 48
+    if (selectedMatchday === 3) return match.id >= 49 && match.id <= 72
+    return false
+  })
+
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
       {/* Cabecera pegajosa */}
       <div className="sticky top-0 z-10 px-4 pt-5 pb-4" style={{ background: '#0a0a0a', borderBottom: '1px solid #1a1a1a' }}>
         <div className="max-w-md mx-auto">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mb-4">
             <button onClick={() => navigate(-1)} className="text-xl" style={{ color: '#666' }}>←</button>
             <div className="flex-1">
               <h1 className="font-bold text-lg text-white">Resultados Oficiales</h1>
               <p className="text-xs" style={{ color: '#555' }}>{totalResults} de 72 partidos jugados</p>
             </div>
           </div>
+
+          {/* Selector de Jornadas con diseño idéntico al de la captura de pantalla */}
+          <div className="flex flex-col gap-2 mt-2">
+            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Jornadas</p>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {[1, 2, 3].map((matchday) => {
+                const isActive = selectedMatchday === matchday
+                return (
+                  <button
+                    key={matchday}
+                    onClick={() => {
+                      setSelectedMatchday(matchday)
+                      setExpandedMatchId(null) // Resetea expansiones al cambiar pestaña
+                    }}
+                    className={`h-11 px-6 rounded-xl font-bold text-sm transition-all flex-shrink-0 ${
+                      isActive 
+                        ? 'bg-[#244ffe] text-white' 
+                        : 'bg-[#141414] border border-[#1f1f1f] text-gray-400'
+                    }`}
+                  >
+                    Jornada {matchday}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Listado secuencial de partidos */}
+      {/* Listado de partidos de la jornada elegida */}
       <div className="px-4 pt-4 pb-32 max-w-md mx-auto flex flex-col gap-3">
         {loading ? (
           [...Array(6)].map((_, i) => <div key={i} className="h-24 rounded-2xl animate-pulse" style={{ background: '#141414' }} />)
+        ) : filteredMatches.length === 0 ? (
+          <p className="text-center text-xs text-gray-500 py-8">No hay partidos cargados para esta jornada.</p>
         ) : (
-          matches.map(match => {
+          filteredMatches.map(match => {
             const hf = getTeamFlag(match.home_team)
             const af = getTeamFlag(match.away_team)
             const dateStr = new Date(`${match.match_date}T12:00:00`).toLocaleDateString('es-MX', {
