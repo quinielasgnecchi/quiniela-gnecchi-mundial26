@@ -12,8 +12,9 @@ function CustomBottomNav() {
   const location = useLocation()
   const navigate = useNavigate()
 
+  // Iconos y etiquetas corregidos exactamente según la captura de pantalla original
   const tabs = [
-    { id: '/pronosticos', label: 'Pronósticos', icon: '🧩' },
+    { id: '/pronosticos', label: 'Inicio', icon: '🏠' },
     { id: '/resultados', label: 'Partidos', icon: '⚽' },
     { id: '/ranking', label: 'Ranking', icon: '🏆' },
     { id: '/perfil', label: 'Perfil', icon: '👤' }
