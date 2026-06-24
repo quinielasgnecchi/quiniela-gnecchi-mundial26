@@ -131,28 +131,28 @@ export default function GroupsPage() {
         </div>
       </div>
 
-      {/* Menú de selección de jornadas */}
-      <div className="mb-6 pb-2 border-b border-[#1f1f1f]">
-        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Jornadas Fase de Grupos</span>
+      {/* Menú de selección de jornadas estilo Captura 1 */}
+      <div className="mb-6 pb-4 border-b border-[#141414]">
+        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-3">Jornadas Fase de Grupos</span>
         <div className="flex gap-2">
           {[1, 2, 3].map((journeyNum) => (
             <button
               key={journeyNum}
               type="button"
               onClick={() => setActiveJourney(journeyNum)}
-              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all border text-center ${
+              className={`flex-1 py-3 rounded-2xl text-sm font-bold transition-all border text-center ${
                 activeJourney === journeyNum
                   ? 'bg-[#244ffe] border-transparent text-white'
-                  : 'bg-[#141414] border-[#1f1f1f] text-gray-400 hover:bg-[#1a1a1a]'
+                  : 'bg-[#141414] border-[#1f1f1f] text-[#8e8e93] hover:bg-[#1a1a1a]'
               }`}
             >
-              Jornada {journeyNum}
+              Jor. {journeyNum}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Listado de partidos bajo el nuevo formato visual solicitado */}
+      {/* Listado de partidos */}
       <div className="mb-10 flex flex-col gap-4">
         {currentJourneyMatches.map((match) => {
           const dateStr = new Date(`${match.match_date}T12:00:00`).toLocaleDateString('es-MX', {
@@ -165,13 +165,12 @@ export default function GroupsPage() {
           return (
             <div key={match.id} className="p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f] shadow-sm">
               
-              {/* Cabecera del partido limpia: Sin rectángulos y un solo título de Jornada */}
+              {/* Cabecera limpia: Sin la etiqueta repetida de Jornada, solo el Nombre de Grupo */}
               <div className="flex items-center justify-between mb-3.5">
-                <p className="text-xs font-semibold">
-                  <span style={{ color: '#244ffe' }}>Jornada {activeJourney}</span>
-                  <span className="text-gray-600 font-normal"> · {match.group_name}</span>
+                <p className="text-xs font-semibold text-gray-400">
+                  {match.group_name}
                 </p>
-                <p className="text-xs" style={{ color: '#555' }}>{dateStr} · {formattedTime}</p>
+                <p className="text-xs text-gray-500">{dateStr} · {formattedTime}</p>
               </div>
               
               {/* Bloque interactivo de Pronósticos original */}
