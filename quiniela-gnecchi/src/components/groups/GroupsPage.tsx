@@ -159,7 +159,6 @@ export default function GroupsPage() {
             weekday: 'short', day: 'numeric', month: 'short'
           })
           
-          // Elimina los segundos cortando a los primeros 5 caracteres (HH:MM)
           const formattedTime = match.match_time ? match.match_time.slice(0, 5) : ''
 
           return (
@@ -173,14 +172,14 @@ export default function GroupsPage() {
                 <p className="text-xs text-gray-500">{dateStr} · {formattedTime}</p>
               </div>
               
-              {/* Bloque interactivo de Pronósticos original */}
+              {/* Bloque estático de vista previa */}
               <div className="grid grid-cols-3 gap-2 items-stretch auto-rows-fr">
                 
-                {/* Botón Equipo Local */}
-                <div className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 border h-full opacity-100 ${
+                {/* Equipo Local */}
+                <div className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 border h-full transition-all ${
                   predictions[match.id] === 'home' 
                     ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
-                    : 'bg-[#1a1a1a] border-transparent text-gray-500'
+                    : 'bg-[#1a1a1a] border-transparent text-gray-500 opacity-40'
                 }`}>
                   <img 
                     src={`https://flagcdn.com/w80/${FLAG_MAP[match.home_team] || 'un'}.png`} 
@@ -191,21 +190,21 @@ export default function GroupsPage() {
                   <span className="text-[11px] font-semibold truncate w-full text-center">{match.home_team}</span>
                 </div>
 
-                {/* Botón Empate */}
-                <div className={`flex flex-col items-center justify-center p-3 rounded-xl gap-1 border h-full opacity-100 ${
+                {/* Empate */}
+                <div className={`flex flex-col items-center justify-center p-3 rounded-xl gap-1 border h-full transition-all ${
                   predictions[match.id] === 'draw' 
                     ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
-                    : 'bg-[#1a1a1a] border-transparent text-gray-500'
+                    : 'bg-[#1a1a1a] border-transparent text-gray-500 opacity-40'
                 }`}>
                   <span className="text-lg leading-none">🤝</span>
                   <span className="text-[11px] font-semibold">Empate</span>
                 </div>
 
-                {/* Botón Equipo Visitante */}
-                <div className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 border h-full opacity-100 ${
+                {/* Equipo Visitante */}
+                <div className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 border h-full transition-all ${
                   predictions[match.id] === 'away' 
                     ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
-                    : 'bg-[#1a1a1a] border-transparent text-gray-500'
+                    : 'bg-[#1a1a1a] border-transparent text-gray-500 opacity-40'
                 }`}>
                   <img 
                     src={`https://flagcdn.com/w80/${FLAG_MAP[match.away_team] || 'un'}.png`} 
