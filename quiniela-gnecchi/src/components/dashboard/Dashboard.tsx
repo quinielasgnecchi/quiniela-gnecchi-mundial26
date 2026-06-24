@@ -109,8 +109,9 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Al hacer clic aquí, ahora vas a la vista de partidos detallados */}
       <div 
-        onClick={() => navigate('/pronosticos')}
+        onClick={() => navigate('/pronosticos/partidos')}
         className="p-5 rounded-2xl mb-5 bg-[#141414] border border-[#1f1f1f] cursor-pointer hover:bg-[#1a1a1a] transition-colors"
       >
         <div className="flex items-center justify-between mb-3">
@@ -128,10 +129,11 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Al hacer clic aquí, también vas a la vista de partidos detallados */}
       <button 
         className="w-full py-4 rounded-xl font-bold text-sm mb-4 text-gray-300 transition-colors" 
         style={{ background: '#1a1a1a', border: '1px solid #2a2a2a' }} 
-        onClick={() => navigate('/pronosticos')}
+        onClick={() => navigate('/pronosticos/partidos')}
       >
         Consultar mis pronósticos ⚽️
       </button>
