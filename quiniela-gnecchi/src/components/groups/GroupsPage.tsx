@@ -131,7 +131,7 @@ export default function GroupsPage() {
         </div>
       </div>
 
-      {/* Menú de selección de jornadas estilo Captura 1 */}
+      {/* Menú de selección de jornadas completo */}
       <div className="mb-6 pb-4 border-b border-[#141414]">
         <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-3">Jornadas Fase de Grupos</span>
         <div className="flex gap-2">
@@ -146,7 +146,7 @@ export default function GroupsPage() {
                   : 'bg-[#141414] border-[#1f1f1f] text-[#8e8e93] hover:bg-[#1a1a1a]'
               }`}
             >
-              Jor. {journeyNum}
+              Jornada {journeyNum}
             </button>
           ))}
         </div>
@@ -165,9 +165,9 @@ export default function GroupsPage() {
           return (
             <div key={match.id} className="p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f] shadow-sm">
               
-              {/* Cabecera limpia: Sin la etiqueta repetida de Jornada, solo el Nombre de Grupo */}
+              {/* Cabecera limpia con el Nombre de Grupo resaltado en Azul */}
               <div className="flex items-center justify-between mb-3.5">
-                <p className="text-xs font-semibold text-gray-400">
+                <p className="text-sm font-bold text-[#009AFE]">
                   {match.group_name}
                 </p>
                 <p className="text-xs text-gray-500">{dateStr} · {formattedTime}</p>
