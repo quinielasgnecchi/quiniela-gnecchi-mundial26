@@ -13,7 +13,7 @@ function CustomBottomNav() {
   const navigate = useNavigate()
 
   const tabs = [
-    { id: '/', label: 'Pronósticos', icon: '🧩' },
+    { id: '/pronosticos', label: 'Pronósticos', icon: '🧩' },
     { id: '/resultados', label: 'Partidos', icon: '⚽' },
     { id: '/ranking', label: 'Ranking', icon: '🏆' },
     { id: '/perfil', label: 'Perfil', icon: '👤' }
@@ -58,16 +58,16 @@ function AppRoutes() {
     <div className="max-w-md mx-auto relative min-h-screen">
       <Routes>
         {/* Rutas públicas */}
-        <Route path="/login" element={user ? <Navigate to="/" /> : <AuthPage />} />
+        <Route path="/login" element={user ? <Navigate to="/pronosticos" /> : <AuthPage />} />
         <Route path="/ranking" element={<RankingPage />} />
         <Route path="/resultados" element={<ResultsPage />} />
 
         {/* Rutas privadas */}
-        <Route path="/" element={user ? <Dashboard /> : <Navigate to="/login" />} />
+        <Route path="/" element={<Navigate to="/pronosticos" />} />
         <Route path="/pronosticos" element={user ? <GroupsPage /> : <Navigate to="/login" />} />
         <Route path="/perfil" element={user ? <ProfilePage /> : <Navigate to="/login" />} />
         <Route path="/admin" element={user ? <AdminPage /> : <Navigate to="/login" />} />
-        <Route path="*" element={<Navigate to={user ? "/" : "/login"} />} />
+        <Route path="*" element={<Navigate to={user ? "/pronosticos" : "/login"} />} />
       </Routes>
       {user && <CustomBottomNav />}
     </div>
