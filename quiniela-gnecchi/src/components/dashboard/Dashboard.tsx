@@ -113,19 +113,23 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="p-5 rounded-2xl mb-5 bg-[#141414] border border-[#1f1f1f]">
+      {/* Vista previa de Fase de Grupos */}
+      <div 
+        onClick={() => navigate('/pronosticos')}
+        className="p-5 rounded-2xl mb-5 bg-[#141414] border border-[#1f1f1f] cursor-pointer hover:bg-[#1a1a1a] transition-colors"
+      >
         <div className="flex items-center justify-between mb-3">
-          <p className="font-semibold">Fase de grupos</p>
-          <div className="px-3 py-1 rounded-full text-xs font-medium" style={{ background: phaseOpen ? 'rgba(0,202,66,0.15)' : 'rgba(234,0,1,0.15)', color: phaseOpen ? '#00CA42' : '#EA0001' }}>
+          <p className="font-semibold text-sm">Fase de grupos</p>
+          <div className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide" style={{ background: phaseOpen ? 'rgba(0,202,66,0.15)' : 'rgba(234,0,1,0.15)', color: phaseOpen ? '#00CA42' : '#EA0001' }}>
             {phaseOpen ? 'Abierta' : 'Cerrada'}
           </div>
         </div>
-        <div className="flex justify-between text-xs mb-1 text-gray-500">
+        <div className="flex justify-between text-xs mb-2 text-gray-500">
           <span>{stats.done} de 72 partidos</span>
           <span>{progress}%</span>
         </div>
         <div className="h-2 rounded-full bg-[#1a1a1a] overflow-hidden">
-          <div className="h-full rounded-full bg-gray-600 transition-all" style={{ width: `${progress}%` }} />
+          <div className="h-full rounded-full bg-[#244ffe] transition-all" style={{ width: `${progress}%` }} />
         </div>
       </div>
 
