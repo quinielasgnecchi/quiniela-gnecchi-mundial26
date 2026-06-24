@@ -22,7 +22,11 @@ function CustomBottomNav() {
   return (
     <div className="fixed bottom-0 left-0 right-0 border-t border-[#1a1a1a] px-4 py-2 flex justify-around items-center z-50 max-w-md mx-auto" style={{ background: '#0a0a0a' }}>
       {tabs.map(tab => {
-        const isActive = location.pathname === tab.id
+        // Marcamos activo 'Pronósticos' si estamos en el dashboard o viendo sus partidos internos
+        const isActive = tab.id === '/pronosticos' 
+          ? location.pathname.startsWith('/pronosticos')
+          : location.pathname === tab.id
+
         return (
           <button
             key={tab.id}
@@ -64,7 +68,11 @@ function AppRoutes() {
 
         {/* Rutas privadas */}
         <Route path="/" element={<Navigate to="/pronosticos" />} />
-        <Route path="/pronosticos" element={user ? <GroupsPage /> : <Navigate to="/login" />} />
+        {/* /pronosticos ahora es la previa (Dashboard de puntos) */}
+        <Route path="/pronosticos" element={user ? <Dashboard /> : <Navigate to="/login" />} />
+        {/* Subruta para entrar a los partidos de los grupos */}
+        <Route path="/pronosticos/partidos" element={user ? <GroupsPage /> : <Navigate to="/login" />} />
+        
         <Route path="/perfil" element={user ? <ProfilePage /> : <Navigate to="/login" />} />
         <Route path="/admin" element={user ? <AdminPage /> : <Navigate to="/login" />} />
         <Route path="*" element={<Navigate to={user ? "/pronosticos" : "/login"} />} />
