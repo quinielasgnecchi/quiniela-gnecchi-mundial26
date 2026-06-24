@@ -20,12 +20,10 @@ export default function Dashboard() {
     if (!user) return
     async function fetchStats() {
       try {
-        // 1. Obtener todos los perfiles con su fecha de registro para computar la posición real exacta
         const { data: allProfiles } = await supabase
           .from('profiles')
           .select('id, points, created_at')
 
-        // 2. Obtener la sumisión de grupos
         const { data: sub } = await supabase
           .from('submissions')
           .select('*')
@@ -38,7 +36,6 @@ export default function Dashboard() {
 
         let computedPosition = 1
         if (allProfiles && currentProfile) {
-          // Ordenamos bajo la misma lógica oficial: 1. Puntos (desc), 2. Registro/Creado (asc)
           const sorted = [...allProfiles].sort((a, b) => {
             const pointsA = Number(a.points ?? 0)
             const pointsB = Number(b.points ?? 0)
@@ -49,7 +46,6 @@ export default function Dashboard() {
             return dateA - dateB
           })
 
-          // Determinamos el orden único de puntajes descendentes para calcular la posición real consecutiva
           const distinctScores = Array.from(new Set(sorted.map(p => Number(p.points ?? 0)))).sort((a, b) => b - a)
           const scoreToPositionMap: Record<number, number> = {}
           distinctScores.forEach((score, index) => {
@@ -113,9 +109,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Tarjeta de Fase de Grupos - Redirige directamente a la vista de los 72 partidos */}
       <div 
-        onClick={() => navigate('/pronosticos/fase-de-grupos')}
+        onClick={() => navigate('/pronosticos')}
         className="p-5 rounded-2xl mb-5 bg-[#141414] border border-[#1f1f1f] cursor-pointer hover:bg-[#1a1a1a] transition-colors"
       >
         <div className="flex items-center justify-between mb-3">
@@ -133,11 +128,10 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Botón de Consulta - Redirige directamente a la vista de los 72 partidos */}
       <button 
         className="w-full py-4 rounded-xl font-bold text-sm mb-4 text-gray-300 transition-colors" 
         style={{ background: '#1a1a1a', border: '1px solid #2a2a2a' }} 
-        onClick={() => navigate('/pronosticos/fase-de-grupos')}
+        onClick={() => navigate('/pronosticos')}
       >
         Consultar mis pronósticos ⚽️
       </button>
