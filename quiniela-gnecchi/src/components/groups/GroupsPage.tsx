@@ -1,226 +1,374 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { getTeamFlag } from '../../types'
 
-interface Match {
+interface MatchData {
   id: number
   group_name: string
-  home_team: string
-  away_team: string
   match_date: string
   match_time: string
+  home_team: string
+  away_team: string
+  home_score: number | null
+  away_score: number | null
+  result: string | null
 }
 
-const FLAG_MAP: Record<string, string> = {
-  'México': 'mx', 'Sudáfrica': 'za', 'Corea del Sur': 'kr', 'Chequia': 'cz',
-  'Canadá': 'ca', 'Bosnia y Herzegovina': 'ba', 'Catar': 'qa', 'Suiza': 'ch',
-  'Brasil': 'br', 'Marruecos': 'ma', 'Haití': 'ht', 'Escocia': 'gb-sct',
-  'Estados Unidos': 'us', 'Paraguay': 'py', 'Australia': 'au', 'Turquía': 'tr',
-  'Alemania': 'de', 'Curazao': 'cw', 'Costa de Marfil': 'ci', 'Ecuador': 'ec',
-  'Países Bajos': 'nl', 'Japón': 'jp', 'Suecia': 'se', 'Túnez': 'tn',
-  'Bélgica': 'be', 'Egipto': 'eg', 'Irán': 'ir', 'Nueva Zelanda': 'nz',
-  'España': 'es', 'Cabo Verde': 'cv', 'Arabia Saudita': 'sa', 'Uruguay': 'uy',
-  'Francia': 'fr', 'Senegal': 'sn', 'Irak': 'iq', 'Noruega': 'no',
-  'Argentina': 'ar', 'Argelia': 'dz', 'Austria': 'at', 'Jordania': 'jo',
-  'Portugal': 'pt', 'RD Congo': 'cd', 'Inglaterra': 'gb-eng', 'Croacia': 'hr',
-  'Ghana': 'gh', 'Panamá': 'pa', 'Uzbekistán': 'uz', 'Colombia': 'co'
+interface PredictionData {
+  match_id: number
+  prediction: 'home' | 'draw' | 'away'
+  profiles: {
+    full_name: string
+  } | null
 }
 
-export default function GroupsPage() {
-  const { user } = useAuth()
+export default function ResultsPage() {
   const navigate = useNavigate()
-  
-  const [dbMatches, setDbMatches] = useState<Match[]>([])
-  const [predictions, setPredictions] = useState<Record<number, string>>({})
+  const { user } = useAuth()
+  const [matches, setMatches] = useState<MatchData[]>([])
+  const [predictions, setPredictions] = useState<PredictionData[]>([])
+  const [leaders, setLeaders] = useState<string[]>([])
+  const [expandedMatchId, setExpandedMatchId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   
-  // Control de la jornada activa (1, 2, o 3)
-  const [activeJourney, setActiveJourney] = useState<number>(1)
+  // Estado para la jornada seleccionada (1, 2 o 3)
+  const [selectedMatchday, setSelectedMatchday] = useState<number>(1)
 
-  // Separar los partidos de fase de grupos por jornadas exactas de 24 partidos cada una
-  const matchesByJourney = useMemo(() => {
-    const journeys: Record<number, Match[]> = { 1: [], 2: [], 3: [] }
-    dbMatches.forEach((match, index) => {
-      if (index < 24) {
-        journeys[1].push(match)
-      } else if (index < 48) {
-        journeys[2].push(match)
-      } else if (index < 72) {
-        journeys[3].push(match)
-      }
-    })
-    return journeys
-  }, [dbMatches])
+  const currentUserFullName = user?.full_name?.trim()
 
   useEffect(() => {
-    if (!user) return
-    
-    async function loadAllData() {
-      try {
-        const { data: fetchedMatches, error: matchesError } = await supabase
-          .from('matches')
-          .select('id, group_name, home_team, away_team, match_date, match_time')
-          .eq('phase', 'groups')
-        
-        if (matchesError) throw matchesError
-        
-        let sorted: Match[] = []
-        if (fetchedMatches) {
-          // Tomar los primeros 72 partidos correspondientes a la Fase de Grupos
-          sorted = (fetchedMatches as Match[])
-            .sort((a, b) => a.id - b.id)
-            .slice(0, 72)
-          setDbMatches(sorted)
-        }
+    fetchInitialData()
+  }, [])
 
-        const { data: userPreds, error: predsError } = await supabase
-          .from('predictions')
-          .select('match_id, prediction')
-          .eq('user_id', user.id)
+  async function fetchInitialData() {
+    try {
+      // 1. Obtener Partidos
+      const { data: matchesData } = await supabase
+        .from('matches')
+        .select('id, group_name, match_date, match_time, home_team, away_team, home_score, away_score, result')
+        .order('id', { ascending: true })
 
-        if (predsError) throw predsError
-
-        if (userPreds && userPreds.length > 0) {
-          const initialPreds: Record<number, string> = {}
-          userPreds.forEach(item => {
-            initialPreds[item.match_id] = item.prediction
-          })
-          setPredictions(initialPreds)
-
-          const validGroupMatchIds = new Set(sorted.map(m => m.id))
-          const groupPredictionsCount = userPreds.filter(p => validGroupMatchIds.has(p.match_id)).length
-
-          // Guardamos el total acumulado de las predicciones de grupos reales en la tabla
-          await supabase
-            .from('submissions')
-            .upsert({
-              user_id: user.id,
-              phase: 'groups',
-              predictions_count: groupPredictionsCount,
-              submitted_at: new Date().toISOString()
-            }, { onConflict: 'user_id,phase' })
-        }
-
-      } catch (err) {
-        console.error("Error al cargar y sincronizar pronósticos:", err)
-      } finally {
-        setLoading(false)
+      if (matchesData) {
+        const parsedMatches = matchesData.map(m => ({
+          ...m,
+          home_score: m.home_score !== null && m.home_score !== undefined ? Number(m.home_score) : null,
+          away_score: m.away_score !== null && m.away_score !== undefined ? Number(m.away_score) : null,
+          result: m.result || null
+        }))
+        setMatches(parsedMatches)
       }
-    }
-    
-    loadAllData()
-  }, [user])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-gray-400 font-medium">
-        Sincronizando partidos con la Base de Datos...
-      </div>
-    )
+      // 2. Obtener Líderes del Ranking actuales
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('full_name, points')
+
+      if (profilesData && profilesData.length > 0) {
+        const maxPoints = Math.max(...profilesData.map(p => Number(p.points ?? 0)))
+        if (maxPoints > 0) {
+          const leadingUsers = profilesData
+            .filter(p => Number(p.points ?? 0) === maxPoints && p.full_name)
+            .map(p => p.full_name!.trim())
+          setLeaders(leadingUsers)
+        }
+      }
+
+      // 3. Obtener todas las predicciones por chunks (Paginación)
+      let allPredictions: PredictionData[] = []
+      let fromRange = 0
+      let toRange = 999
+      let hasMore = true
+
+      while (hasMore) {
+        const { data: predsChunk } = await supabase
+          .from('predictions')
+          .select('match_id, prediction, profiles ( full_name )')
+          .range(fromRange, toRange)
+
+        if (predsChunk && predsChunk.length > 0) {
+          allPredictions = [...allPredictions, ...(predsChunk as unknown as PredictionData[])]
+          fromRange += 1000
+          toRange += 1000
+        } else {
+          hasMore = false
+        }
+      }
+
+      setPredictions(allPredictions)
+    } catch (error) {
+      console.error('Error al inicializar los datos de resultados:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const currentJourneyMatches = matchesByJourney[activeJourney] || []
+  const totalResults = matches.filter(m => m.result !== null).length
+
+  const toggleExpand = (matchId: number) => {
+    setExpandedMatchId(expandedMatchId === matchId ? null : matchId)
+  }
+
+  // Filtrado estricto por jornadas: 24 partidos cada una basados en su ID secuencial
+  const filteredMatches = matches.filter(match => {
+    if (selectedMatchday === 1) return match.id >= 1 && match.id <= 24
+    if (selectedMatchday === 2) return match.id >= 25 && match.id <= 48
+    if (selectedMatchday === 3) return match.id >= 49 && match.id <= 72
+    return false
+  })
 
   return (
-    <div className="px-4 pt-6 pb-[100px] min-h-screen bg-[#0a0a0a] text-white">
-      {/* Cabecera principal limpia */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <button onClick={() => navigate(-1)} className="text-sm font-bold text-[#009AFE] mb-2 block">← Volver</button>
-          <h1 className="text-2xl font-bold tracking-tight">Mis Pronósticos</h1>
-          <p className="text-xs text-gray-500 mt-1">Consulta las predicciones registradas para la fase de grupos</p>
-        </div>
-      </div>
-
-      {/* Selector de Jornadas (3 pestañas superiores limpias) */}
-      <div className="mb-6 pb-2 border-b border-[#1f1f1f]">
-        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Jornadas Fase de Grupos</span>
-        <div className="flex gap-2">
-          {[1, 2, 3].map((journeyNum) => (
-            <button
-              key={journeyNum}
-              type="button"
-              onClick={() => setActiveJourney(journeyNum)}
-              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all border text-center ${
-                activeJourney === journeyNum
-                  ? 'bg-[#009AFE] border-[#33adff] text-white'
-                  : 'bg-[#141414] border-[#1f1f1f] text-gray-400 hover:bg-[#1a1a1a]'
-              }`}
-            >
-              Jornada {journeyNum}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Renderizado de los 24 partidos correspondientes a la Jornada Seleccionada */}
-      <div className="mb-10">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-6 h-6 bg-[#009AFE] rounded-md flex items-center justify-center font-bold text-xs text-white">
-            {activeJourney}
-          </div>
-          <h2 className="text-base font-bold text-gray-200">Partidos · Jornada {activeJourney}</h2>
-        </div>
-        
-        <div className="flex flex-col gap-4">
-          {currentJourneyMatches.map((match) => (
-            <div key={match.id} className="p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f] shadow-sm">
-              <div className="flex justify-between items-center px-1 mb-3">
-                <span className="text-[10px] bg-[#1a1a1a] px-2 py-0.5 rounded-md border border-[#2a2a2a] text-gray-400 font-bold">
-                  Grupo {match.group_name}
-                </span>
-                <p className="text-[10px] text-gray-500 font-mono">
-                  Partido #{match.id} · {match.match_date} - {match.match_time}
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-2 items-stretch auto-rows-fr">
-                
-                {/* Botón Equipo Local (Sólo vista) */}
-                <div className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 border h-full opacity-100 ${
-                  predictions[match.id] === 'home' 
-                    ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
-                    : 'bg-[#1a1a1a] border-transparent text-gray-500'
-                }`}>
-                  <img 
-                    src={`https://flagcdn.com/w80/${FLAG_MAP[match.home_team] || 'un'}.png`} 
-                    alt={match.home_team}
-                    className="w-8 h-5 object-cover rounded shadow-sm"
-                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://flagcdn.com/w80/un.png' }}
-                  />
-                  <span className="text-[11px] font-semibold truncate w-full text-center">{match.home_team}</span>
-                </div>
-
-                {/* Botón Empate (Sólo vista) */}
-                <div className={`flex flex-col items-center justify-center p-3 rounded-xl gap-1 border h-full opacity-100 ${
-                  predictions[match.id] === 'draw' 
-                    ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
-                    : 'bg-[#1a1a1a] border-transparent text-gray-500'
-                }`}>
-                  <span className="text-lg leading-none">🤝</span>
-                  <span className="text-[11px] font-semibold">Empate</span>
-                </div>
-
-                {/* Botón Equipo Visitante (Sólo vista) */}
-                <div className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 border h-full opacity-100 ${
-                  predictions[match.id] === 'away' 
-                    ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
-                    : 'bg-[#1a1a1a] border-transparent text-gray-500'
-                }`}>
-                  <img 
-                    src={`https://flagcdn.com/w80/${FLAG_MAP[match.away_team] || 'un'}.png`} 
-                    alt={match.away_team}
-                    className="w-8 h-5 object-cover rounded shadow-sm"
-                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://flagcdn.com/w80/un.png' }}
-                  />
-                  <span className="text-[11px] font-semibold truncate w-full text-center">{match.away_team}</span>
-                </div>
-
-              </div>
+    <div className="min-h-screen bg-[#0a0a0a]">
+      {/* Cabecera pegajosa */}
+      <div className="sticky top-0 z-10 px-4 pt-5 pb-4" style={{ background: '#0a0a0a', borderBottom: '1px solid #1a1a1a' }}>
+        <div className="max-w-md mx-auto">
+          <div className="flex items-center gap-3 mb-4">
+            <button onClick={() => navigate(-1)} className="text-xl" style={{ color: '#666' }}>←</button>
+            <div className="flex-1">
+              <h1 className="font-bold text-lg text-white">Resultados Oficiales</h1>
+              <p className="text-xs" style={{ color: '#555' }}>{totalResults} de 72 partidos jugados</p>
             </div>
-          ))}
+          </div>
+
+          {/* Menú de selección de jornadas optimizado para pantalla completa en móviles */}
+          <div className="flex w-full gap-1.5 mt-2">
+            {[1, 2, 3].map((matchday) => {
+              const isActive = selectedMatchday === matchday
+              return (
+                <button
+                  key={matchday}
+                  onClick={() => {
+                    setSelectedMatchday(matchday)
+                    setExpandedMatchId(null) // Resetea expansiones al cambiar pestaña
+                  }}
+                  className={`flex-1 h-11 rounded-xl font-bold text-[11px] xs:text-xs sm:text-sm transition-all px-0.5 text-center ${
+                    isActive 
+                      ? 'bg-[#244ffe]' 
+                      : 'bg-[#141414] border border-[#1f1f1f] text-gray-400'
+                  }`}
+                >
+                  Jornada {matchday}
+                </button>
+              )
+            })}
+          </div>
         </div>
+      </div>
+
+      {/* Listado de partidos de la jornada elegida */}
+      <div className="px-4 pt-4 pb-32 max-w-md mx-auto flex flex-col gap-3">
+        {loading ? (
+          [...Array(6)].map((_, i) => <div key={i} className="h-24 rounded-2xl animate-pulse" style={{ background: '#141414' }} />)
+        ) : filteredMatches.length === 0 ? (
+          <p className="text-center text-xs text-gray-500 py-8">No hay partidos cargados para esta jornada.</p>
+        ) : (
+          filteredMatches.map(match => {
+            const hf = getTeamFlag(match.home_team)
+            const af = getTeamFlag(match.away_team)
+            const dateStr = new Date(`${match.match_date}T12:00:00`).toLocaleDateString('es-MX', {
+              weekday: 'short', day: 'numeric', month: 'short'
+            })
+
+            // Limpieza de los segundos (HH:MM:SS -> HH:MM)
+            const formattedTime = match.match_time ? match.match_time.slice(0, 5) : ''
+            const isFinished = match.result !== null
+            const isExpanded = expandedMatchId === match.id
+
+            const matchPreds = predictions.filter(p => p.match_id === match.id)
+            
+            // FILTRADO Y ORDENAMIENTO ALFABÉTICO INMUNE A MAYÚSCULAS Y ACENTOS
+            const homePredictors = matchPreds
+              .filter(p => p.prediction === 'home')
+              .map(p => (p.profiles?.full_name ? p.profiles.full_name.trim() : 'Anónimo'))
+              .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base', numeric: true }))
+
+            const drawPredictors = matchPreds
+              .filter(p => p.prediction === 'draw')
+              .map(p => (p.profiles?.full_name ? p.profiles.full_name.trim() : 'Anónimo'))
+              .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base', numeric: true }))
+
+            const awayPredictors = matchPreds
+              .filter(p => p.prediction === 'away')
+              .map(p => (p.profiles?.full_name ? p.profiles.full_name.trim() : 'Anónimo'))
+              .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base', numeric: true }))
+
+            // Encontrar la predicción realizada por el usuario logueado en este partido específico
+            const currentUserPrediction = matchPreds.find(p => p.profiles?.full_name?.trim() === currentUserFullName)?.prediction
+
+            // Determinar si acertó el resultado global oficial
+            const isHit = isFinished && currentUserPrediction === match.result
+
+            const getUserStyles = (currentBlockType: 'home' | 'draw' | 'away') => {
+              if (!isFinished) {
+                return 'bg-[#244ffe]/20 border-[#244ffe] text-white ring-1 ring-[#244ffe]/30'
+              }
+              const hit = match.result === currentBlockType
+              return hit 
+                ? 'bg-[#00ca42]/20 border-[#00ca42] text-white ring-1 ring-[#00ca42]/30' 
+                : 'bg-[#ff2e2e]/20 border-[#ff2e2e] text-white ring-1 ring-[#ff2e2e]/30'
+            }
+
+            return (
+              <div 
+                key={match.id} 
+                onClick={() => toggleExpand(match.id)}
+                className="p-4 rounded-2xl cursor-pointer transition-all active:scale-[0.99]" 
+                style={{
+                  background: '#141414',
+                  border: `1px solid ${isFinished ? 'rgba(36, 79, 254, 0.3)' : '#1f1f1f'}`
+                }}
+              >
+                {/* ID del Partido y Fecha (Formato unificado sin rectángulos extras) */}
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-semibold flex items-center gap-1.5">
+                    {isFinished && (
+                      <span style={{ color: isHit ? '#00ca42' : '#ff2e2e', fontWeight: 'bold' }}>
+                        {isHit ? '✓' : '✗'}
+                      </span>
+                    )}
+                    <span>
+                      <span style={{ color: '#244ffe' }}>Jornada {selectedMatchday}</span>
+                      <span className="text-gray-600 font-normal"> · {match.group_name}</span>
+                    </span>
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs" style={{ color: '#555' }}>{dateStr} · {formattedTime}</p>
+                    <span className="text-gray-600 text-xs transition-transform duration-200" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+                  </div>
+                </div>
+
+                {/* Marcadores e Información de los equipos */}
+                <div className="flex items-center justify-between mt-3">
+                  <div className="flex flex-col items-center gap-1 w-24">
+                    <span className="text-3xl">{hf}</span>
+                    <span className="text-xs font-medium text-center text-white leading-tight">{match.home_team}</span>
+                  </div>
+
+                  <div className="flex flex-col items-center gap-1">
+                    {isFinished && match.home_score !== null && match.away_score !== null ? (
+                      <div className="text-2xl font-bold text-white px-3 py-1 rounded-xl bg-[#1f1f1f]">
+                        {match.home_score} — {match.away_score}
+                      </div>
+                    ) : (
+                      <div className="text-xs font-bold px-3 py-1.5 rounded-xl bg-[#1a1a1a]" style={{ color: '#444' }}>
+                        PENDIENTE
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col items-center gap-1 w-24">
+                    <span className="text-3xl">{af}</span>
+                    <span className="text-xs font-medium text-center text-white leading-tight">{match.away_team}</span>
+                  </div>
+                </div>
+
+                {/* Menú Desplegable de Pronósticos */}
+                {isExpanded && (
+                  <div className="mt-4 pt-4 border-t border-[#1f1f1f] flex flex-col gap-3 text-left" onClick={(e) => e.stopPropagation()}>
+                    <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Distribución de Pronósticos</p>
+                    
+                    {/* Bloque Local */}
+                    <div className="p-2.5 rounded-xl bg-[#0d0d0d] border" style={{ borderColor: isFinished && match.result === 'home' ? '#00ca42' : '#1a1a1a' }}>
+                      <p className="text-xs font-bold mb-2 text-white flex items-center justify-between">
+                        <span>Gana {match.home_team} ({homePredictors.length})</span>
+                        {isFinished && match.result === 'home' && <span className="text-[10px] text-[#00ca42] font-black">✔ ACERTARON</span>}
+                      </p>
+                      {homePredictors.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {homePredictors.map((name, idx) => {
+                            const isMe = name === currentUserFullName
+                            const isLeader = leaders.includes(name)
+                            return (
+                              <span 
+                                key={idx} 
+                                className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap border font-medium flex items-center gap-1 ${
+                                  isMe 
+                                    ? getUserStyles('home') 
+                                    : isLeader 
+                                      ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 font-bold' 
+                                      : 'bg-[#181818] border-[#222] text-gray-300'
+                                }`}
+                              >
+                                {name} {isLeader && '🏆'}
+                              </span>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-600 italic">Nadie eligió esta opción</p>
+                      )}
+                    </div>
+
+                    {/* Bloque Empate */}
+                    <div className="p-2.5 rounded-xl bg-[#0d0d0d] border" style={{ borderColor: isFinished && match.result === 'draw' ? '#00ca42' : '#1a1a1a' }}>
+                      <p className="text-xs font-bold mb-2 text-white flex items-center justify-between">
+                        <span>Empate ({drawPredictors.length})</span>
+                        {isFinished && match.result === 'draw' && <span className="text-[10px] text-[#00ca42] font-black">✔ ACERTARON</span>}
+                      </p>
+                      {drawPredictors.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {drawPredictors.map((name, idx) => {
+                            const isMe = name === currentUserFullName
+                            const isLeader = leaders.includes(name)
+                            return (
+                              <span 
+                                key={idx} 
+                                className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap border font-medium flex items-center gap-1 ${
+                                  isMe 
+                                    ? getUserStyles('draw') 
+                                    : isLeader 
+                                      ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 font-bold' 
+                                      : 'bg-[#181818] border-[#222] text-gray-300'
+                                }`}
+                              >
+                                {name} {isLeader && '🏆'}
+                              </span>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-600 italic">Nadie eligió esta opción</p>
+                      )}
+                    </div>
+
+                    {/* Bloque Visitante */}
+                    <div className="p-2.5 rounded-xl bg-[#0d0d0d] border" style={{ borderColor: isFinished && match.result === 'away' ? '#00ca42' : '#1a1a1a' }}>
+                      <p className="text-xs font-bold mb-2 text-white flex items-center justify-between">
+                        <span>Gana {match.away_team} ({awayPredictors.length})</span>
+                        {isFinished && match.result === 'away' && <span className="text-[10px] text-[#00ca42] font-black">✔ ACERTARON</span>}
+                      </p>
+                      {awayPredictors.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {awayPredictors.map((name, idx) => {
+                            const isMe = name === currentUserFullName
+                            const isLeader = leaders.includes(name)
+                            return (
+                              <span 
+                                key={idx} 
+                                className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap border font-medium flex items-center gap-1 ${
+                                  isMe 
+                                    ? getUserStyles('away') 
+                                    : isLeader 
+                                      ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 font-bold' 
+                                      : 'bg-[#181818] border-[#222] text-gray-300'
+                                }`}
+                              >
+                                {name} {isLeader && '🏆'}
+                              </span>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-600 italic">Nadie eligió esta opción</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
       </div>
     </div>
   )
