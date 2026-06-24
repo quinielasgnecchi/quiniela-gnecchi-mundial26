@@ -18,7 +18,6 @@ export default function RankingPage() {
       try {
         setLoading(true)
         
-        // Consultamos los usuarios incluyendo created_at para el desempate cronológico por orden de registro
         const { data, error } = await supabase
           .from('profiles')
           .select('id, full_name, email, avatar_url, points, created_at')
@@ -44,13 +43,12 @@ export default function RankingPage() {
             }
           })
           
-          // Ordenar principalmente por puntos (descendente) y secundariamente por fecha de creación/registro (ascendente)
+          // Ordenar principalmente por puntos (descendente) y secundariamente por orden alfabético (ascendente)
           formattedData.sort((a, b) => {
             if (b.points !== a.points) return b.points - a.points
             
-            const dateA = new Date(a.created_at).getTime()
-            const dateB = new Date(b.created_at).getTime()
-            return dateA - dateB
+            // Desempate alfabético inmune a mayúsculas y acentos para los bloques empatados en puntos
+            return a.full_name.localeCompare(b.full_name, 'es', { sensitivity: 'base', numeric: true })
           })
 
           setRanking(formattedData)
@@ -76,7 +74,7 @@ export default function RankingPage() {
   // Encontrar el puntaje máximo global del ranking
   const maxPoints = ranking.length > 0 ? Math.max(...ranking.map(p => p.points)) : 0
 
-  // Construir mapeo de puntajes a posiciones sin saltos numéricos estadísticos
+  // Construir mapeo de puntajes a posiciones compartidas (sin saltos numéricos estadísticos para empatados)
   const distinctScores = Array.from(new Set(ranking.map(p => p.points))).sort((a, b) => b - a)
   const scoreToPositionMap: Record<number, number> = {}
   distinctScores.forEach((score, index) => {
