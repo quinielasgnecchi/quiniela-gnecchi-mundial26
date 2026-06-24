@@ -35,20 +35,23 @@ export default function GroupsPage() {
   const [predictions, setPredictions] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(true)
   
-  const [activeGroup, setActiveGroup] = useState<string>('Grupo A')
+  // Control de la jornada activa (1, 2, o 3)
+  const [activeJourney, setActiveJourney] = useState<number>(1)
 
-  const matchesByGroup = useMemo(() => {
-    const groups: Record<string, Match[]> = {}
-    dbMatches.forEach(match => {
-      if (!groups[match.group_name]) {
-        groups[match.group_name] = []
+  // Separar los partidos de fase de grupos por jornadas exactas de 24 partidos cada una
+  const matchesByJourney = useMemo(() => {
+    const journeys: Record<number, Match[]> = { 1: [], 2: [], 3: [] }
+    dbMatches.forEach((match, index) => {
+      if (index < 24) {
+        journeys[1].push(match)
+      } else if (index < 48) {
+        journeys[2].push(match)
+      } else if (index < 72) {
+        journeys[3].push(match)
       }
-      groups[match.group_name].push(match)
     })
-    return groups
+    return journeys
   }, [dbMatches])
-
-  const sortedGroupNames = useMemo(() => Object.keys(matchesByGroup).sort(), [matchesByGroup])
 
   useEffect(() => {
     if (!user) return
@@ -64,13 +67,11 @@ export default function GroupsPage() {
         
         let sorted: Match[] = []
         if (fetchedMatches) {
-          sorted = (fetchedMatches as Match[]).sort((a, b) => a.id - b.id)
+          // Tomar los primeros 72 partidos correspondientes a la Fase de Grupos
+          sorted = (fetchedMatches as Match[])
+            .sort((a, b) => a.id - b.id)
+            .slice(0, 72)
           setDbMatches(sorted)
-          
-          if (sorted.length > 0) {
-            const firstGroup = sorted[0].group_name
-            setActiveGroup(firstGroup)
-          }
         }
 
         const { data: userPreds, error: predsError } = await supabase
@@ -87,11 +88,10 @@ export default function GroupsPage() {
           })
           setPredictions(initialPreds)
 
-          // Ligamos los datos reales contando únicamente las predicciones que pertenecen a la fase de grupos (IDs de partidos cargados)
           const validGroupMatchIds = new Set(sorted.map(m => m.id))
           const groupPredictionsCount = userPreds.filter(p => validGroupMatchIds.has(p.match_id)).length
 
-          // Sincronizamos la tabla submissions automáticamente con el conteo de la fase de grupos
+          // Guardamos el total acumulado de las predicciones de grupos reales en la tabla
           await supabase
             .from('submissions')
             .upsert({
@@ -120,6 +120,8 @@ export default function GroupsPage() {
     )
   }
 
+  const currentJourneyMatches = matchesByJourney[activeJourney] || []
+
   return (
     <div className="px-4 pt-6 pb-[100px] min-h-screen bg-[#0a0a0a] text-white">
       {/* Cabecera principal limpia */}
@@ -131,92 +133,95 @@ export default function GroupsPage() {
         </div>
       </div>
 
-      {/* Menú de iniciales de grupos */}
+      {/* Selector de Jornadas (3 pestañas superiores limpias) */}
       <div className="mb-6 pb-2 border-b border-[#1f1f1f]">
-        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Grupos</span>
-        <div className="overflow-x-auto scrollbar-none flex gap-2">
-          {sortedGroupNames.map((groupName) => (
+        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Jornadas Fase de Grupos</span>
+        <div className="flex gap-2">
+          {[1, 2, 3].map((journeyNum) => (
             <button
-              key={groupName}
+              key={journeyNum}
               type="button"
-              onClick={() => setActiveGroup(groupName)}
-              className={`flex-none w-9 h-9 rounded-xl text-xs font-bold transition-all border flex items-center justify-center ${
-                activeGroup === groupName
+              onClick={() => setActiveJourney(journeyNum)}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all border text-center ${
+                activeJourney === journeyNum
                   ? 'bg-[#009AFE] border-[#33adff] text-white'
                   : 'bg-[#141414] border-[#1f1f1f] text-gray-400 hover:bg-[#1a1a1a]'
               }`}
             >
-              {groupName.replace('Grupo ', '')}
+              Jornada {journeyNum}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Renderizado único del Grupo Activo */}
-      {activeGroup && matchesByGroup[activeGroup] && (
-        <div className="mb-10">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-6 h-6 bg-[#009AFE] rounded-md flex items-center justify-center font-bold text-xs text-white">
-              {activeGroup.replace('Grupo ', '')}
-            </div>
-            <h2 className="text-base font-bold text-gray-200">Partidos {activeGroup}</h2>
+      {/* Renderizado de los 24 partidos correspondientes a la Jornada Seleccionada */}
+      <div className="mb-10">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-6 h-6 bg-[#009AFE] rounded-md flex items-center justify-center font-bold text-xs text-white">
+            {activeJourney}
           </div>
-          
-          <div className="flex flex-col gap-4">
-            {matchesByGroup[activeGroup].map((match) => (
-              <div key={match.id} className="p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f] shadow-sm">
-                <p className="text-[10px] text-gray-500 text-center mb-3 font-mono">
-                  Partido #{match.id} · {match.match_date} a las {match.match_time}
-                </p>
-                
-                <div className="grid grid-cols-3 gap-2 items-stretch auto-rows-fr">
-                  
-                  {/* Botón Equipo Local (Sólo vista) */}
-                  <div className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 border h-full opacity-100 ${
-                    predictions[match.id] === 'home' 
-                      ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
-                      : 'bg-[#1a1a1a] border-transparent text-gray-500'
-                  }`}>
-                    <img 
-                      src={`https://flagcdn.com/w80/${FLAG_MAP[match.home_team] || 'un'}.png`} 
-                      alt={match.home_team}
-                      className="w-8 h-5 object-cover rounded shadow-sm"
-                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://flagcdn.com/w80/un.png' }}
-                    />
-                    <span className="text-[11px] font-semibold truncate w-full text-center">{match.home_team}</span>
-                  </div>
-
-                  {/* Botón Empate (Sólo vista) */}
-                  <div className={`flex flex-col items-center justify-center p-3 rounded-xl gap-1 border h-full opacity-100 ${
-                    predictions[match.id] === 'draw' 
-                      ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
-                      : 'bg-[#1a1a1a] border-transparent text-gray-500'
-                  }`}>
-                    <span className="text-lg leading-none">🤝</span>
-                    <span className="text-[11px] font-semibold">Empate</span>
-                  </div>
-
-                  {/* Botón Equipo Visitante (Sólo vista) */}
-                  <div className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 border h-full opacity-100 ${
-                    predictions[match.id] === 'away' 
-                      ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
-                      : 'bg-[#1a1a1a] border-transparent text-gray-500'
-                  }`}>
-                    <img 
-                      src={`https://flagcdn.com/w80/${FLAG_MAP[match.away_team] || 'un'}.png`} 
-                      alt={match.away_team}
-                      className="w-8 h-5 object-cover rounded shadow-sm"
-                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://flagcdn.com/w80/un.png' }}
-                    />
-                    <span className="text-[11px] font-semibold truncate w-full text-center">{match.away_team}</span>
-                  </div>
-
-                </div>
-              </div>
-            ))}
-          </div>
+          <h2 className="text-base font-bold text-gray-200">Partidos · Jornada {activeJourney}</h2>
         </div>
-      )}
+        
+        <div className="flex flex-col gap-4">
+          {currentJourneyMatches.map((match) => (
+            <div key={match.id} className="p-4 rounded-2xl bg-[#141414] border border-[#1f1f1f] shadow-sm">
+              <div className="flex justify-between items-center px-1 mb-3">
+                <span className="text-[10px] bg-[#1a1a1a] px-2 py-0.5 rounded-md border border-[#2a2a2a] text-gray-400 font-bold">
+                  Grupo {match.group_name}
+                </span>
+                <p className="text-[10px] text-gray-500 font-mono">
+                  Partido #{match.id} · {match.match_date} - {match.match_time}
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-2 items-stretch auto-rows-fr">
+                
+                {/* Botón Equipo Local (Sólo vista) */}
+                <div className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 border h-full opacity-100 ${
+                  predictions[match.id] === 'home' 
+                    ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
+                    : 'bg-[#1a1a1a] border-transparent text-gray-500'
+                }`}>
+                  <img 
+                    src={`https://flagcdn.com/w80/${FLAG_MAP[match.home_team] || 'un'}.png`} 
+                    alt={match.home_team}
+                    className="w-8 h-5 object-cover rounded shadow-sm"
+                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://flagcdn.com/w80/un.png' }}
+                  />
+                  <span className="text-[11px] font-semibold truncate w-full text-center">{match.home_team}</span>
+                </div>
+
+                {/* Botón Empate (Sólo vista) */}
+                <div className={`flex flex-col items-center justify-center p-3 rounded-xl gap-1 border h-full opacity-100 ${
+                  predictions[match.id] === 'draw' 
+                    ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
+                    : 'bg-[#1a1a1a] border-transparent text-gray-500'
+                }`}>
+                  <span className="text-lg leading-none">🤝</span>
+                  <span className="text-[11px] font-semibold">Empate</span>
+                </div>
+
+                {/* Botón Equipo Visitante (Sólo vista) */}
+                <div className={`flex flex-col items-center justify-center p-3 rounded-xl gap-2 border h-full opacity-100 ${
+                  predictions[match.id] === 'away' 
+                    ? 'bg-[#009AFE] border-[#33adff] text-white font-bold' 
+                    : 'bg-[#1a1a1a] border-transparent text-gray-500'
+                }`}>
+                  <img 
+                    src={`https://flagcdn.com/w80/${FLAG_MAP[match.away_team] || 'un'}.png`} 
+                    alt={match.away_team}
+                    className="w-8 h-5 object-cover rounded shadow-sm"
+                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://flagcdn.com/w80/un.png' }}
+                  />
+                  <span className="text-[11px] font-semibold truncate w-full text-center">{match.away_team}</span>
+                </div>
+
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
