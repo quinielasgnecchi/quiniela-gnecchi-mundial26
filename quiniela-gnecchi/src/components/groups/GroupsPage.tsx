@@ -62,8 +62,9 @@ export default function GroupsPage() {
         
         if (matchesError) throw matchesError
         
+        let sorted: Match[] = []
         if (fetchedMatches) {
-          const sorted = (fetchedMatches as Match[]).sort((a, b) => a.id - b.id)
+          sorted = (fetchedMatches as Match[]).sort((a, b) => a.id - b.id)
           setDbMatches(sorted)
           
           if (sorted.length > 0) {
@@ -85,10 +86,24 @@ export default function GroupsPage() {
             initialPreds[item.match_id] = item.prediction
           })
           setPredictions(initialPreds)
+
+          // Ligamos los datos reales contando únicamente las predicciones que pertenecen a la fase de grupos (IDs de partidos cargados)
+          const validGroupMatchIds = new Set(sorted.map(m => m.id))
+          const groupPredictionsCount = userPreds.filter(p => validGroupMatchIds.has(p.match_id)).length
+
+          // Sincronizamos la tabla submissions automáticamente con el conteo de la fase de grupos
+          await supabase
+            .from('submissions')
+            .upsert({
+              user_id: user.id,
+              phase: 'groups',
+              predictions_count: groupPredictionsCount,
+              submitted_at: new Date().toISOString()
+            }, { onConflict: 'user_id,phase' })
         }
 
       } catch (err) {
-        console.error("Error al cargar:", err)
+        console.error("Error al cargar y sincronizar pronósticos:", err)
       } finally {
         setLoading(false)
       }
