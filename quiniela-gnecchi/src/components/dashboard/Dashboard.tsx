@@ -20,16 +20,19 @@ export default function Dashboard() {
     if (!user) return
     async function fetchStats() {
       try {
+        // 1. Obtener puntajes generales de los perfiles
         const { data: allProfiles } = await supabase
           .from('profiles')
           .select('id, points, created_at')
 
-        const { data: sub } = await supabase
-          .from('submissions')
-          .select('*')
+        // 2. Consultar directamente las predicciones reales del usuario para la fase de grupos
+        const { data: predData } = await supabase
+          .from('predictions')
+          .select('id')
           .eq('user_id', user.id)
           .eq('phase', 'groups')
-          .maybeSingle()
+
+        const predictionsCount = predData?.length || 0
 
         const currentProfile = allProfiles?.find(p => p.id === user.id)
         const totalPoints = Number(currentProfile?.points ?? 0)
@@ -58,9 +61,9 @@ export default function Dashboard() {
         setStats({
           total_points: totalPoints,
           position: computedPosition,
-          done: sub?.predictions_count || 0,
-          submitted: !!sub,
-          date: sub?.submitted_at || '',
+          done: predictionsCount,
+          submitted: predictionsCount >= 72,
+          date: '',
         })
       } catch (e) {
         console.error(e)
